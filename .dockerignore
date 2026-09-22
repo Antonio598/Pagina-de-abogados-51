@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.agents
+.claude
+skills-lock.json
+npm-debug.log*
+.env
+.env.*
+!.env.example
+.dockerignore

@@ -9,7 +9,7 @@
 import { createHash } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import nodemailer from "nodemailer";
-import { agendaSchema, contactSchema } from "@/lib/validation";
+import { contactSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
 
@@ -63,8 +63,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, id: "ignored" });
   }
 
-  const tipo = (body as { tipo?: string })?.tipo === "agenda" ? "agenda" : "contacto";
-  const parsed = tipo === "agenda" ? agendaSchema.safeParse(body) : contactSchema.safeParse(body);
+  const parsed = contactSchema.safeParse(body);
 
   if (!parsed.success) {
     const fields: Record<string, string> = {};
@@ -92,11 +91,11 @@ export async function POST(req: NextRequest) {
     user_agent: req.headers.get("user-agent") ?? "",
   };
 
-  const subject = tipo === "agenda" ? `[VERITUM] Solicitud de reserva · ${data.asunto} · ${id}` : `[VERITUM] Nueva solicitud de contacto · ${data.asunto} · ${id}`;
+  const subject = `[VERITUM] Nueva solicitud de contacto · ${data.asunto} · ${id}`;
 
   const html = `
     <div style="font-family:Inter,Arial,sans-serif;max-width:640px;margin:0 auto;color:#292A2D">
-      <p style="color:#0D224C;font-size:18px;margin:0 0 4px"><strong>VERITUM</strong> · ${tipo === "agenda" ? "Solicitud de reserva" : "Solicitud de contacto"}</p>
+      <p style="color:#0D224C;font-size:18px;margin:0 0 4px"><strong>VERITUM</strong> · Solicitud de contacto</p>
       <p style="color:#7A653A;font-size:12px;margin:0 0 16px">Folio ${id}</p>
       <table style="border-collapse:collapse;width:100%">${rows(data)}</table>
       <hr style="border:0;border-top:1px solid #E5E1D8;margin:20px 0">
@@ -118,6 +117,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "No pudimos enviar tu solicitud. Inténtalo de nuevo." }, { status: 502 });
   }
 
-  console.info("[contacto] Solicitud enviada", { id, tipo, asunto: data.asunto, consent: consent.fecha_hora });
+  console.info("[contacto] Solicitud enviada", { id, asunto: data.asunto, consent: consent.fecha_hora });
   return NextResponse.json({ ok: true, id });
 }

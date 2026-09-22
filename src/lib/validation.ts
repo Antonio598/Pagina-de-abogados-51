@@ -36,17 +36,23 @@ export const contactSchema = z.object({
 
 export type ContactInput = z.infer<typeof contactSchema>;
 
-export const agendaSchema = z.object({
+// Reserva con pago: el horario se identifica por el inicio exacto en UTC que
+// devolvió el servidor, no por una fecha y hora escritas a mano.
+export const reservaSchema = z.object({
   nombre: z.string().trim().min(3, e.nombre).max(120, e.nombre),
   correo: z.string().trim().email(e.correo).max(160, e.correo),
   telefono: phone,
   asunto: z.enum(asuntoValues, { message: e.asunto }),
-  modalidad: z.string().trim().optional(),
-  fecha: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Selecciona una fecha."),
-  hora: z.string().trim().regex(/^\d{2}:\d{2}$/, "Selecciona una hora."),
+  modalidad: z.string().trim().max(60).optional().or(z.literal("")),
+  entidad: z.string().trim().max(80).optional().or(z.literal("")),
+  municipio: z.string().trim().max(80).optional().or(z.literal("")),
+  descripcion: z.string().trim().max(contactForm.maxChars, e.descripcionMax).optional().or(z.literal("")),
   urgente: optionalDate,
+  slot: z.string().trim().datetime({ message: "Selecciona un horario disponible." }),
   terminos: z.literal(true, { message: "Es necesario aceptar los términos y el aviso de privacidad." }),
+  origen: z.enum(["landing", "sitio"]),
+  utm: z.record(z.string(), z.string().max(120)).optional(),
   empresa_web: z.string().optional(),
 });
 
-export type AgendaInput = z.infer<typeof agendaSchema>;
+export type ReservaInput = z.infer<typeof reservaSchema>;

@@ -10,6 +10,7 @@ import Script from "next/script";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { env } from "@/lib/env";
 import { captureUtm, track } from "@/lib/analytics";
+import { trackVisit } from "@/lib/tracking";
 import { Button } from "@/components/ui/Button";
 
 const CONSENT_KEY = "veritum_consent_v1";
@@ -65,6 +66,12 @@ export const Analytics = () => {
     track("page_view", { page: pathname });
   }, [pathname]);
 
+  // Medición propia del sitio público (la landing tiene su propio registro).
+  useEffect(() => {
+    if (pathname.startsWith("/consulta") || pathname.startsWith("/panel")) return;
+    return trackVisit(pathname, "sitio");
+  }, [pathname]);
+
   // scroll_relevante al 50 % y 90 % de la página.
   useEffect(() => {
     let fired50 = false;
@@ -100,19 +107,18 @@ export const Analytics = () => {
     });
   };
 
-  if (!env.gtmId) return null;
   const loadGtm = consent?.analytics || consent?.ads;
 
   return (
     <>
-      {loadGtm && (
+      {env.gtmId && loadGtm && (
         <Script id="gtm" strategy="afterInteractive">
           {`window.dataLayer=window.dataLayer||[];window.dataLayer.push({'gtm.start':new Date().getTime(),event:'gtm.js'});
 (function(w,d,s,l,i){var f=d.getElementsByTagName(s)[0],j=d.createElement(s);j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+'&l='+l;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${env.gtmId}');`}
         </Script>
       )}
 
-      {consent === null && (
+      {env.gtmId && consent === null && (
           <div
             role="region"
             aria-label="Consentimiento de cookies"

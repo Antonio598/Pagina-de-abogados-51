@@ -40,6 +40,13 @@ export const env = {
     .map((s) => s.trim())
     .filter(Boolean),
 
+  // Landing de campaña (/consulta)
+  /** URL del agente de IA (WhatsApp, Messenger o web). Vacío = el botón no aparece. */
+  agenteIaUrl: clean(process.env.NEXT_PUBLIC_AGENTE_IA_URL),
+  /** Video MP4 de la landing servido desde /public. Vacío = el bloque no aparece. */
+  landingVideo: clean(process.env.NEXT_PUBLIC_LANDING_VIDEO),
+  landingVideoPoster: clean(process.env.NEXT_PUBLIC_LANDING_VIDEO_POSTER),
+
   // Medición
   gtmId: clean(process.env.NEXT_PUBLIC_GTM_ID),
 } as const;

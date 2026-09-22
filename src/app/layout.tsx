@@ -4,11 +4,6 @@ import "./globals.css";
 import { seo } from "@content/seo";
 import { site } from "@content/site";
 import { env } from "@/lib/env";
-import { organizationSchema } from "@/lib/schema";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
-import { Analytics } from "@/components/layout/Analytics";
-import { JsonLd } from "@/components/ui/JsonLd";
 
 // Dos familias como máximo: Inter (cuerpo/UI) y Fraunces (títulos de primer nivel).
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
@@ -43,15 +38,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         {/* Sin JavaScript, los bloques con animación de entrada se muestran de inmediato. */}
         <noscript>
-          <style>{`[style*="opacity"]{opacity:1!important;transform:none!important}`}</style>
+          <style>{`[data-reveal],[data-stagger] > *,[data-draw]{opacity:1!important;transform:none!important}`}</style>
         </noscript>
-        <JsonLd data={organizationSchema()} />
-        <Header />
-        <main id="contenido" className="flex-1">
-          {children}
-        </main>
-        <Footer />
-        <Analytics />
+        {children}
       </body>
     </html>
   );

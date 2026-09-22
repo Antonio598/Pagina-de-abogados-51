@@ -8,6 +8,9 @@ import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { Section } from "@/components/ui/Section";
 import { DrawLine, Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import { AgendaFlow } from "@/components/forms/AgendaFlow";
+import { SLOT_MINUTES } from "@/lib/booking";
+import { cobroConfigurado } from "@/lib/pricing";
+import { getPromo } from "@/lib/promo-server";
 import { Check } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -21,6 +24,8 @@ export const metadata: Metadata = {
 export default async function AgendaPage({ searchParams }: PageProps<"/agenda">) {
   const sp = await searchParams;
   const tipo = typeof sp.tipo === "string" ? sp.tipo : undefined;
+  const cancelado = sp.pago === "cancelado";
+  const { precio } = await getPromo();
 
   return (
     <>
@@ -30,7 +35,7 @@ export default async function AgendaPage({ searchParams }: PageProps<"/agenda">)
       <Section tone="marfil" className="pt-4 md:pt-6 lg:pt-6">
         <div className="grid gap-10 lg:grid-cols-12 lg:gap-14">
           <Reveal className="lg:col-span-8">
-            <AgendaFlow defaultAsunto={tipo} />
+            <AgendaFlow defaultAsunto={tipo} precio={precio} duracionMinutos={SLOT_MINUTES} cobroDisponible={cobroConfigurado} cancelado={cancelado} />
           </Reveal>
           <aside className="lg:col-span-4">
             <div className="lg:sticky lg:top-28">

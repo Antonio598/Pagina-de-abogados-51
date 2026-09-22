@@ -32,7 +32,7 @@ export const Logo = ({ inverse, className, asLink = true, size = "md" }: LogoPro
         <span className={cn("font-display font-medium", word, scale)}>{site.name}</span>
         <span className={cn("h-px w-3 md:w-5", line)} aria-hidden />
       </span>
-      <span className={cn("mt-1.5 font-sans font-semibold uppercase", desc, descScale)}>
+      <span className={cn("mt-1.5 whitespace-nowrap font-sans font-semibold uppercase", desc, descScale)}>
         {site.descriptor}
       </span>
     </span>

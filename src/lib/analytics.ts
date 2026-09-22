@@ -7,13 +7,16 @@ export type AnalyticsEvent =
   | "servicio_visto"
   | "cta_agenda"
   | "agenda_iniciada"
+  | "pago_iniciado"
   | "agenda_confirmada"
   | "formulario_enviado"
   | "whatsapp_click"
   | "telefono_click"
   | "correo_click"
   | "guia_descargada"
-  | "scroll_relevante";
+  | "scroll_relevante"
+  | "landing_video_play"
+  | "agente_ia_click";
 
 export type EventPayload = {
   page?: string;

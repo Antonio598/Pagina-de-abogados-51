@@ -82,9 +82,13 @@ src/components/layout/   Header, Footer, Logo (provisional), Analytics/consentim
 src/components/home/     bloques de Inicio en el orden aprobado
 src/components/services/ MethodBand, ProcessSteps, tracker de servicio
 src/components/library/  índice con filtros y cabecera de artículo
-src/components/forms/    ContactForm, AgendaFlow, campos accesibles
+src/components/forms/    ContactForm, BookingForm (reserva + pago), AgendaFlow, campos
+src/components/landing/  bloques de /consulta (contador, video, confirmación)
+src/components/panel/    acceso, detalle de cita y navegación del panel
+supabase/schema.sql      esquema de la base de datos (pegar en Supabase)
 src/components/motion/   Reveal, Stagger, DrawLine, useScrollProgress (CSS + IntersectionObserver; respetan prefers-reduced-motion)
-src/lib/                 env, analytics, schema (JSON-LD), validación (zod), utils
+src/lib/                 env, analytics, tracking propio, booking, pricing, promo,
+                         stripe, db (Supabase), panel-auth, schema (JSON-LD), validación
 ```
 
 ## 7. Accesibilidad y rendimiento
@@ -92,3 +96,69 @@ src/lib/                 env, analytics, schema (JSON-LD), validación (zod), ut
 Lighthouse móvil (simulación 4G lenta, CPU ×4): rendimiento 86–97, accesibilidad 100, buenas prácticas 100, SEO 100. Sin desbordes horizontales desde 360 px; objetivos de toque ≥ 40 px en navegación, filtros y formularios.
 
 Navegación completa por teclado (menú móvil con trampa de foco y Esc), foco visible con anillo dorado, contraste AA (el dorado nunca se usa en texto de cuerpo), un H1 por página, etiquetas asociadas a cada campo, errores junto al campo, `prefers-reduced-motion` respetado, sin parallax, sin video, sin carruseles, sin pop-ups. Fuentes: Inter + Fraunces vía `next/font` (dos familias máximo).
+
+---
+
+## 8. Reservas con pago, landing de campaña y panel interno
+
+### 8.1 Qué es cada cosa
+
+| Ruta | Qué es | Visible al público |
+| --- | --- | --- |
+| `/consulta` | Landing para anuncios de Meta, pensada para móvil | No: `noindex`, fuera del sitemap y sin enlaces desde el sitio |
+| `/consulta/agendar` | Formulario de reserva de la landing (página aparte) | No |
+| `/consulta/confirmacion` | Regreso desde Stripe; confirma cuando el pago se registra | No |
+| `/agenda` | Reserva desde el sitio público (mismo motor, otro diseño) | Sí, pero `noindex` |
+| `/panel` | Panel interno: citas, horarios y métricas | No: `noindex` y `Disallow` en robots.txt |
+
+**El pago es lo que confirma la cita.** Al enviar el formulario, el horario se aparta 20 minutos (`BOOKING_HOLD_MINUTES`) mientras la persona paga. Si no paga, se libera solo. Cuando Stripe avisa que el pago se completó, la cita pasa a `pagada`, se envían los correos y aparece en el panel.
+
+### 8.2 Puesta en marcha
+
+**1) Supabase**
+1. Crea el proyecto y abre *SQL Editor*.
+2. Pega [supabase/schema.sql](supabase/schema.sql) completo y ejecútalo (es idempotente).
+3. Copia `SUPABASE_URL` y la **service role key** a las variables de entorno. Esa clave es secreta y solo se usa en el servidor; RLS queda activo y sin políticas públicas, así que la clave anónima no puede leer nada.
+
+**2) Stripe**
+1. Crea el producto "Asesoría legal inicial" con dos precios: normal y promocional.
+2. Copia `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID` y `STRIPE_PRICE_PROMO_ID`.
+3. Crea el webhook apuntando a `https://<tu-dominio>/api/stripe/webhook` con los eventos `checkout.session.completed`, `checkout.session.expired`, `checkout.session.async_payment_succeeded` y `checkout.session.async_payment_failed`. Copia `STRIPE_WEBHOOK_SECRET`.
+4. Escribe los mismos importes **en centavos** en `NEXT_PUBLIC_PRECIO_NORMAL` y `NEXT_PUBLIC_PRECIO_PROMO` (son los que se muestran en pantalla).
+
+Pruebas locales del cobro:
+```bash
+stripe listen --forward-to localhost:3000/api/stripe/webhook   # copia el whsec_ que imprime
+# tarjeta de prueba 4242 4242 4242 4242, cualquier fecha futura y CVC
+```
+
+**3) Panel interno**
+```bash
+node scripts/hash-password.mjs "una contraseña larga"   # imprime PANEL_PASSWORD_HASH
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"   # PANEL_SESSION_SECRET
+```
+Define además `PANEL_USER`. La sesión dura 8 horas y se bloquea el acceso 15 minutos tras 5 intentos fallidos.
+
+**4) Video y agente de IA de la landing**
+- Sube el MP4 a `public/video/` y pon la ruta en `NEXT_PUBLIC_LANDING_VIDEO` (por ejemplo `/video/veritum.mp4`). Añade una miniatura en `NEXT_PUBLIC_LANDING_VIDEO_POSTER`. Se reproduce solo al tocar: nada de autoplay. Mantenlo por debajo de ~10 MB.
+- Cuando exista el agente, pon su enlace en `NEXT_PUBLIC_AGENTE_IA_URL`. Sin esa variable, el botón no aparece en ningún lado.
+
+**5) Horarios**
+Entra a `/panel/disponibilidad` y define las franjas por día de la semana. El esquema trae lunes a viernes de 10:00 a 14:00 y de 16:00 a 18:00 como ejemplo. Cada franja se divide en sesiones de `BOOKING_SLOT_MINUTES` (45 por omisión).
+
+### 8.3 El descuento por tiempo limitado
+
+Es un descuento **real**, no un adorno: el reloj empieza en la primera visita a `/consulta`, se guarda firmado en una cookie httpOnly y, al expirar, Stripe cobra el precio normal. El precio se decide siempre en el servidor ([src/app/api/reservas/route.ts](src/app/api/reservas/route.ts)), así que modificarlo desde el navegador no tiene efecto. Para apagarlo por completo, deja vacío `NEXT_PUBLIC_PRECIO_PROMO`.
+
+### 8.4 Métricas del panel
+
+`/panel/metricas` muestra visitantes del sitio y de la landing, tiempo promedio de permanencia, visitas por día, embudo de la landing (visitas → formulario → pago iniciado → pagadas), páginas más vistas y de dónde llegan. Los datos son de primera persona ([src/lib/tracking.ts](src/lib/tracking.ts)): sin IP, sin cookies de seguimiento y con un identificador de sesión anónimo que muere al cerrar la pestaña.
+
+### 8.5 Pendientes de esta fase
+
+- [ ] Aprobar los textos de la landing en [content/landing.ts](content/landing.ts) (son nuevos, no forman parte del documento aprobado).
+- [ ] Subir el video MP4 y su miniatura.
+- [ ] Definir precio normal y promocional, y crearlos en Stripe.
+- [ ] Conectar el agente de IA.
+- [ ] Añadir al aviso de privacidad las secciones de reservas, Stripe y medición propia (ya están listadas en [content/legal.ts](content/legal.ts)).
+- [ ] Probar el pago de extremo a extremo en producción con una tarjeta real de bajo importe y reembolsarla.

@@ -7,6 +7,8 @@ import { Section } from "@/components/ui/Section";
 import { ButtonLink } from "@/components/ui/Button";
 import { ServiceIcon } from "@/components/ui/ServiceIcon";
 import { Stagger, StaggerItem } from "@/components/motion/Reveal";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
 
 export const metadata: Metadata = { title: "Página no encontrada │ VERITUM", robots: { index: false } };
 
@@ -14,6 +16,8 @@ export const metadata: Metadata = { title: "Página no encontrada │ VERITUM", 
 export default function NotFound() {
   return (
     <>
+      <Header />
+      <main id="contenido" className="flex-1">
       <PageHero eyebrow="Error 404" title="No encontramos esta página" text={site.tagline} compact>
         <div className="flex flex-col gap-3 sm:flex-row">
           <ButtonLink href="/" arrow>
@@ -39,6 +43,8 @@ export default function NotFound() {
           ))}
         </Stagger>
       </Section>
+      </main>
+      <Footer />
     </>
   );
 }

@@ -5,7 +5,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import { asuntoOptions, canalOptions, contactForm as cf } from "@content/contact";
 import { getResource } from "@content/library";
 import { env } from "@/lib/env";
@@ -75,16 +74,11 @@ export const ContactForm = ({ defaultAsunto, recurso }: Props) => {
 
   if (status === "success") {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        role="status"
-        className="rounded-brand border border-dorado/40 bg-blanco p-8 shadow-card"
-      >
+      <div role="status" className="anim-rise rounded-brand border border-dorado/40 bg-blanco p-6 shadow-card md:p-8">
         <CheckCircle2 className="size-8 text-azul" strokeWidth={1.5} aria-hidden />
         <h2 className="font-display mt-4 type-h2 text-azul">{cf.successTitle}</h2>
         <p className="measure mt-3 text-carbon/85">{cf.successText(env.plazoRespuesta, canalLabel(canal))}</p>
-      </motion.div>
+      </div>
     );
   }
 
@@ -138,23 +132,21 @@ export const ContactForm = ({ defaultAsunto, recurso }: Props) => {
         {...register("privacidad")}
       />
 
-      <AnimatePresence>
         {status === "error" && serverError && (
-          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} role="alert" className="flex gap-3 rounded-brand border border-[#b23b3b]/40 bg-[#fbf2f2] p-4 text-sm text-[#6d2323]">
+          <div role="alert" className="anim-rise flex gap-3 rounded-brand border border-[#b23b3b]/40 bg-[#fbf2f2] p-4 text-sm text-[#6d2323] [animation-duration:250ms]">
             <AlertTriangle className="size-5 shrink-0" strokeWidth={1.75} aria-hidden />
             <div>
               <p className="font-medium">{cf.errorTitle}</p>
               <p className="mt-1">{serverError}</p>
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <Button type="submit" size="lg" arrow disabled={status === "sending"}>
           {status === "sending" ? cf.sending : cf.submit}
         </Button>
-        <p id="form-after" className="text-sm text-carbon/65">
+        <p id="form-after" className="text-sm text-carbon/75">
           {cf.afterSubmit}
         </p>
       </div>

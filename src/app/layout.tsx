@@ -16,7 +16,7 @@ const fraunces = Fraunces({
   subsets: ["latin"],
   variable: "--font-fraunces",
   display: "swap",
-  axes: ["opsz", "SOFT"],
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
@@ -34,6 +34,7 @@ export const viewport: Viewport = {
   themeColor: "#F7F4ED",
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

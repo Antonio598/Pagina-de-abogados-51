@@ -1,6 +1,6 @@
 # VERITUM — sitio web
 
-Sitio institucional de **VERITUM · Capital Humano & Legal**. Next.js 16 (App Router) + TypeScript + Tailwind v4 + Motion, empaquetado como imagen Docker `standalone` para **EasyPanel**.
+Sitio institucional de **VERITUM · Capital Humano & Legal**. Next.js 16 (App Router) + TypeScript + Tailwind v4, animaciones con CSS + `IntersectionObserver` (sin librerías de movimiento), empaquetado como imagen Docker `standalone` para **EasyPanel**.
 
 Tagline (elemento tipográfico independiente, nunca parte del logotipo): _Estrategia legal con claridad y acompañamiento humano._
 
@@ -83,10 +83,12 @@ src/components/home/     bloques de Inicio en el orden aprobado
 src/components/services/ MethodBand, ProcessSteps, tracker de servicio
 src/components/library/  índice con filtros y cabecera de artículo
 src/components/forms/    ContactForm, AgendaFlow, campos accesibles
-src/components/motion/   Reveal, Stagger, DrawLine (respetan prefers-reduced-motion)
+src/components/motion/   Reveal, Stagger, DrawLine, useScrollProgress (CSS + IntersectionObserver; respetan prefers-reduced-motion)
 src/lib/                 env, analytics, schema (JSON-LD), validación (zod), utils
 ```
 
 ## 7. Accesibilidad y rendimiento
+
+Lighthouse móvil (simulación 4G lenta, CPU ×4): rendimiento 86–97, accesibilidad 100, buenas prácticas 100, SEO 100. Sin desbordes horizontales desde 360 px; objetivos de toque ≥ 40 px en navegación, filtros y formularios.
 
 Navegación completa por teclado (menú móvil con trampa de foco y Esc), foco visible con anillo dorado, contraste AA (el dorado nunca se usa en texto de cuerpo), un H1 por página, etiquetas asociadas a cada campo, errores junto al campo, `prefers-reduced-motion` respetado, sin parallax, sin video, sin carruseles, sin pop-ups. Fuentes: Inter + Fraunces vía `next/font` (dos familias máximo).

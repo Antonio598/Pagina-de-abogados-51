@@ -27,14 +27,15 @@ export const env = {
   },
 
   // Formularios y agenda
-  plazoRespuesta: clean(process.env.NEXT_PUBLIC_PLAZO_RESPUESTA) ?? "un día hábil",
+  /** Plazo real de respuesta confirmado por VERITUM; sin él, el mensaje de éxito no promete tiempos. */
+  plazoRespuesta: clean(process.env.NEXT_PUBLIC_PLAZO_RESPUESTA),
   /** {{precios}} — si está vacío, la línea de precio no se muestra. */
   precioAsesoria: clean(process.env.NEXT_PUBLIC_PRECIO_ASESORIA),
   duracionAsesoria: clean(process.env.NEXT_PUBLIC_DURACION_ASESORIA),
   /** {{proveedor_agenda}} — URL del proveedor autorizado (Calendly, Cal.com, etc.). */
   agendaUrl: clean(process.env.NEXT_PUBLIC_AGENDA_URL),
   /** Opciones de modalidad para la reserva, separadas por coma. */
-  modalidadesAgenda: (clean(process.env.NEXT_PUBLIC_MODALIDADES_AGENDA) ?? "Presencial,En línea")
+  modalidadesAgenda: (clean(process.env.NEXT_PUBLIC_MODALIDADES_AGENDA) ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean),

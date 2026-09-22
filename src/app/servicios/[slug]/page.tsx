@@ -88,7 +88,7 @@ export default async function ServicePage({ params }: PageProps<"/servicios/[slu
           <div className="lg:col-span-4">
             <SectionHeading number="01" eyebrow={service.short} title={servicesLabels.mattersTitle} className="mb-0 lg:sticky lg:top-28" />
           </div>
-          <Stagger as="ul" className="grid gap-x-10 sm:grid-cols-2 lg:col-span-8" amount={0.15}>
+          <Stagger as="ul" className="grid gap-x-10 sm:grid-cols-2 lg:col-span-8">
             {service.matters.map((m) => (
               <StaggerItem as="li" key={m} className="flex items-start gap-4 border-b border-gris py-5">
                 <span className="mt-1 flex size-6 shrink-0 items-center justify-center rounded-full border border-dorado/50 text-dorado-2">
@@ -104,7 +104,7 @@ export default async function ServicePage({ params }: PageProps<"/servicios/[slu
       {/* Forma de trabajo */}
       <Section tone="marfil" id="forma-de-trabajo">
         <SectionHeading number="02" eyebrow={home.how.title} title={servicesLabels.howTitle} />
-        <Stagger as="ol" className="grid gap-6 md:grid-cols-2 lg:grid-cols-5" amount={0.15}>
+        <Stagger as="ol" className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
           {home.how.steps.map((step, i) => (
             <StaggerItem as="li" key={step} className="rounded-brand border border-gris bg-blanco p-6">
               <span className="font-display text-2xl tabular-nums text-dorado-2" aria-hidden>

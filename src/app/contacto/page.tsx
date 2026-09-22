@@ -64,7 +64,7 @@ export default async function ContactPage({ searchParams }: PageProps<"/contacto
               <h2 className={hasContactData || socialLinks.length > 0 ? "eyebrow mt-8" : "eyebrow"}>{contact.coverageLabel}</h2>
               <DrawLine className="my-5" />
               <p className="font-display text-[1.35rem] text-azul">{site.coverage}</p>
-              <p className="mt-6 text-sm text-carbon/65">{site.legalNotice}</p>
+              <p className="mt-6 text-sm text-carbon/75">{site.legalNotice}</p>
             </div>
           </aside>
         </div>

@@ -72,7 +72,7 @@ export default function AboutPage() {
 
       {/* Misión y visión */}
       <Section tone="grid-azul">
-        <Stagger className="grid gap-6 md:grid-cols-2" amount={0.2}>
+        <Stagger className="grid gap-6 md:grid-cols-2">
           {[about.mission, about.vision].map((block, i) => (
             <StaggerItem key={block.title} className="rounded-brand border border-blanco/15 bg-azul/60 p-8 backdrop-blur-sm md:p-10">
               <p className="eyebrow !text-dorado flex items-center gap-3">

@@ -1,37 +1,32 @@
 "use client";
 
-import { useRef } from "react";
-import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "motion/react";
 import { home } from "@content/home";
 import { site } from "@content/site";
 import { Section, SectionHeading } from "@/components/ui/Section";
 import { Reveal } from "@/components/motion/Reveal";
+import { useScrollProgress } from "@/components/motion/useScrollProgress";
 import { pad2 } from "@/lib/utils";
 
 /** "Cómo trabajamos": cinco pasos con una línea dorada que se dibuja conforme se
- *  avanza en el scroll. No es parallax: solo el progreso de una línea. */
+ *  avanza en el scroll (horizontal en escritorio, vertical en móvil). */
 export const MethodTimeline = () => {
-  const ref = useRef<HTMLOListElement>(null);
-  const reduced = useReducedMotion();
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start 75%", "end 55%"] });
-  const smooth = useSpring(scrollYProgress, { stiffness: 80, damping: 24, mass: 0.4 });
-  const scale = useTransform(smooth, [0, 1], [0, 1]);
+  const { targetRef, lineRef } = useScrollProgress<HTMLOListElement, HTMLDivElement>("both");
 
   return (
     <Section tone="blanco" id="como-trabajamos">
       <SectionHeading number="03" eyebrow={site.pillars[1]} title={home.how.title} />
 
-      <ol ref={ref} className="relative grid gap-10 lg:grid-cols-5 lg:gap-6">
-        {/* Línea base + línea de progreso (horizontal en escritorio, vertical en móvil) */}
+      <ol ref={targetRef} className="relative grid gap-9 lg:grid-cols-5 lg:gap-6">
         <div aria-hidden className="absolute left-[1.35rem] top-0 h-full w-px bg-gris lg:left-0 lg:top-[1.35rem] lg:h-px lg:w-full" />
-        <motion.div
+        <div
+          ref={lineRef}
           aria-hidden
-          className="absolute left-[1.35rem] top-0 h-full w-px bg-dorado lg:left-0 lg:top-[1.35rem] lg:h-px lg:w-full"
-          style={reduced ? { scaleY: 1, scaleX: 1 } : { scaleY: scale, scaleX: scale, transformOrigin: "top left" }}
+          className="absolute left-[1.35rem] top-0 h-full w-px origin-top-left bg-dorado lg:left-0 lg:top-[1.35rem] lg:h-px lg:w-full"
+          style={{ transform: "scale(0, 0)" }}
         />
         {home.how.steps.map((step, i) => (
           <Reveal as="li" key={step} delay={i * 0.06} className="relative flex gap-5 lg:block lg:pt-14">
-            <span className="relative z-10 flex size-11 shrink-0 items-center justify-center rounded-full border border-dorado bg-blanco font-display text-sm tabular-nums text-azul lg:absolute lg:top-0 lg:left-0">
+            <span className="relative z-10 flex size-11 shrink-0 items-center justify-center rounded-full border border-dorado bg-blanco font-display text-sm tabular-nums text-azul lg:absolute lg:left-0 lg:top-0">
               {pad2(i + 1)}
             </span>
             <p className="pt-2 text-pretty text-carbon/90 lg:pr-6 lg:pt-0">{step}</p>

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Menu, X } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { agendaCta, mainNav, site } from "@content/site";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/analytics";
@@ -19,7 +18,6 @@ export const Header = () => {
   const [open, setOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
   const [mobileServices, setMobileServices] = useState(false);
-  const reduced = useReducedMotion();
   const panelRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const closeTimer = useRef<number | null>(null);
@@ -101,8 +99,8 @@ export const Header = () => {
       >
         <div
           className={cn(
-            "container-editorial flex items-center justify-between gap-3 transition-[height] duration-300 ease-brand",
-            scrolled ? "h-16" : "h-[76px]",
+            "container-editorial flex items-center justify-between gap-2 transition-[height] duration-300 ease-brand sm:gap-3",
+            scrolled ? "h-16" : "h-[68px] md:h-[76px]",
           )}
         >
           <Logo size={scrolled ? "sm" : "md"} />
@@ -128,41 +126,27 @@ export const Header = () => {
                       {item.label}
                       <ChevronDown aria-hidden className={cn("size-4 transition-transform duration-200", servicesOpen && "rotate-180")} strokeWidth={1.75} />
                     </button>
-                    <AnimatePresence>
-                      {servicesOpen && (
-                        <motion.div
-                          initial={{ opacity: 0, y: reduced ? 0 : 6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: reduced ? 0 : 4 }}
-                          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                          className="absolute left-1/2 top-full z-50 w-[22rem] -translate-x-1/2 pt-3"
-                        >
-                          <div className="overflow-hidden rounded-brand border border-gris bg-blanco p-2 shadow-card-hover">
+                    {servicesOpen && (
+                      <div className="anim-rise absolute left-1/2 top-full z-50 w-[22rem] -translate-x-1/2 pt-3 [animation-duration:200ms]">
+                        <div className="overflow-hidden rounded-brand border border-gris bg-blanco p-2 shadow-card-hover">
+                          <Link href={item.href} className="block rounded-brand px-4 py-2.5 text-[0.9rem] font-medium text-azul hover:bg-marfil" onClick={() => setServicesOpen(false)}>
+                            Todos los servicios
+                          </Link>
+                          <div className="gold-rule my-1" />
+                          {item.children.map((c) => (
                             <Link
-                              href={item.href}
-                              className="block rounded-brand px-4 py-2.5 text-[0.9rem] font-medium text-azul hover:bg-marfil"
+                              key={c.href}
+                              href={c.href}
+                              className="group flex items-center justify-between rounded-brand px-4 py-2.5 text-[0.95rem] text-carbon hover:bg-marfil hover:text-azul"
                               onClick={() => setServicesOpen(false)}
                             >
-                              Todos los servicios
+                              <span>{c.label}</span>
+                              <span className="text-xs uppercase tracking-widest text-dorado-2 opacity-0 transition-opacity group-hover:opacity-100">{c.short}</span>
                             </Link>
-                            <div className="gold-rule my-1" />
-                            {item.children.map((c) => (
-                              <Link
-                                key={c.href}
-                                href={c.href}
-                                className="group flex items-center justify-between rounded-brand px-4 py-2.5 text-[0.95rem] text-carbon hover:bg-marfil hover:text-azul"
-                                onClick={() => setServicesOpen(false)}
-                              >
-                                <span>{c.label}</span>
-                                <span className="text-xs uppercase tracking-widest text-dorado-2 opacity-0 transition-opacity group-hover:opacity-100">
-                                  {c.short}
-                                </span>
-                              </Link>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </li>
                 ) : (
                   <li key={item.href}>
@@ -180,7 +164,8 @@ export const Header = () => {
           </nav>
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-3">
-            <ButtonLink href={agendaCta.href} size="sm" onClick={onAgendaClick} className="h-9 px-3 text-[0.85rem] sm:h-10 sm:px-5 sm:text-[0.9375rem]">
+            {/* "Agenda asesoría" siempre visible, también en móvil (mín. 40 px de alto). */}
+            <ButtonLink href={agendaCta.href} size="sm" onClick={onAgendaClick} className="h-10 whitespace-nowrap px-3 py-0 text-[0.85rem] sm:px-5 sm:text-[0.9375rem]">
               {agendaCta.label}
             </ButtonLink>
             <button
@@ -196,86 +181,65 @@ export const Header = () => {
             </button>
           </div>
         </div>
-
       </header>
 
       {/* Menú móvil / tableta. Vive fuera del <header>: backdrop-filter crearía un bloque contenedor para position:fixed. */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            id="menu-movil"
-            ref={panelRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Menú de navegación"
-            initial={{ opacity: 0, y: reduced ? 0 : -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: reduced ? 0 : -6 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed inset-0 z-40 overflow-y-auto bg-marfil pt-[76px] xl:hidden"
-          >
-            <nav aria-label="Principal móvil" className="container-editorial py-6">
-              <ul className="flex flex-col">
-                {mainNav.map((item, i) => (
-                  <motion.li
-                    key={item.href}
-                    initial={{ opacity: 0, x: reduced ? 0 : -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.04 * i, duration: 0.25 }}
-                    className="border-b border-gris"
-                  >
-                    {item.children ? (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <Link href={item.href} className="py-4 text-lg font-medium text-azul" aria-current={isActive(pathname, item.href) ? "page" : undefined}>
-                            {item.label}
-                          </Link>
-                          <button
-                            type="button"
-                            className="inline-flex size-11 items-center justify-center rounded-brand text-azul"
-                            aria-expanded={mobileServices}
-                            aria-label={mobileServices ? "Ocultar servicios" : "Mostrar servicios"}
-                            onClick={() => setMobileServices((v) => !v)}
-                          >
-                            <ChevronDown aria-hidden className={cn("size-5 transition-transform", mobileServices && "rotate-180")} strokeWidth={1.75} />
-                          </button>
-                        </div>
-                        <AnimatePresence initial={false}>
-                          {mobileServices && (
-                            <motion.ul
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.22 }}
-                              className="overflow-hidden pb-2 pl-4"
-                            >
-                              {item.children.map((c) => (
-                                <li key={c.href}>
-                                  <Link href={c.href} className="block py-2.5 text-base text-carbon hover:text-azul">
-                                    <span className="mr-2 inline-block h-px w-4 bg-dorado align-middle" aria-hidden />
-                                    {c.label}
-                                  </Link>
-                                </li>
-                              ))}
-                            </motion.ul>
-                          )}
-                        </AnimatePresence>
-                      </>
-                    ) : (
-                      <Link href={item.href} className="block py-4 text-lg font-medium text-azul" aria-current={isActive(pathname, item.href) ? "page" : undefined}>
-                        {item.label}
-                      </Link>
-                    )}
-                  </motion.li>
-                ))}
-              </ul>
-              <p className="mt-8 text-sm text-carbon/60">{site.tagline}</p>
-            </nav>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {open && (
+        <div
+          id="menu-movil"
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menú de navegación"
+          className="anim-fade fixed inset-0 z-40 overflow-y-auto bg-marfil pb-safe pt-[68px] [animation-duration:220ms] md:pt-[76px] xl:hidden"
+        >
+          <nav aria-label="Principal móvil" className="container-editorial py-4">
+            <ul className="flex flex-col">
+              {mainNav.map((item, i) => (
+                <li key={item.href} className="anim-slide-x border-b border-gris [animation-duration:250ms]" style={{ ["--d" as string]: `${40 * i}ms` } as React.CSSProperties}>
+                  {item.children ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <Link href={item.href} className="flex-1 py-4 text-lg font-medium text-azul" aria-current={isActive(pathname, item.href) ? "page" : undefined}>
+                          {item.label}
+                        </Link>
+                        <button
+                          type="button"
+                          className="inline-flex size-12 items-center justify-center rounded-brand text-azul"
+                          aria-expanded={mobileServices}
+                          aria-label={mobileServices ? "Ocultar servicios" : "Mostrar servicios"}
+                          onClick={() => setMobileServices((v) => !v)}
+                        >
+                          <ChevronDown aria-hidden className={cn("size-5 transition-transform", mobileServices && "rotate-180")} strokeWidth={1.75} />
+                        </button>
+                      </div>
+                      <div className="acc-panel" data-open={mobileServices ? "" : undefined}>
+                        <ul className="pb-2 pl-4">
+                          {item.children.map((c) => (
+                            <li key={c.href}>
+                              <Link href={c.href} className="block py-3 text-base text-carbon hover:text-azul" tabIndex={mobileServices ? 0 : -1}>
+                                <span className="mr-2 inline-block h-px w-4 bg-dorado align-middle" aria-hidden />
+                                {c.label}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </>
+                  ) : (
+                    <Link href={item.href} className="block py-4 text-lg font-medium text-azul" aria-current={isActive(pathname, item.href) ? "page" : undefined}>
+                      {item.label}
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-8 text-sm text-carbon/70">{site.tagline}</p>
+          </nav>
+        </div>
+      )}
       {/* Espaciador para que el header fijo no tape contenido. */}
-      <div aria-hidden className="h-[76px]" />
+      <div aria-hidden className="h-[68px] md:h-[76px]" />
     </>
   );
 };

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 type Crumb = { name: string; href: string };
 
 export const Breadcrumbs = ({ items, inverse, className }: { items: Crumb[]; inverse?: boolean; className?: string }) => (
-  <nav aria-label="Ruta de navegación" className={cn("container-editorial pt-6 text-sm", className)}>
+  <nav aria-label="Ruta de navegación" className={cn("container-editorial pt-4 text-sm", className)}>
     <JsonLd data={breadcrumbSchema(items.map((c) => ({ name: c.name, url: `${env.siteUrl}${c.href}` })))} />
     <ol className="flex flex-wrap items-center gap-1.5">
       {items.map((c, i) => {
@@ -16,11 +16,11 @@ export const Breadcrumbs = ({ items, inverse, className }: { items: Crumb[]; inv
         return (
           <li key={c.href} className="flex items-center gap-1.5">
             {last ? (
-              <span aria-current="page" className={inverse ? "text-marfil/70" : "text-carbon/60"}>
+              <span aria-current="page" className={inverse ? "text-marfil/70" : "text-carbon/70"}>
                 {c.name}
               </span>
             ) : (
-              <Link href={c.href} className={cn("hover:underline underline-offset-4", inverse ? "text-marfil/85" : "text-azul")}>
+              <Link href={c.href} className={cn("inline-block py-2 underline-offset-4 hover:underline", inverse ? "text-marfil/85" : "text-azul")}>
                 {c.name}
               </Link>
             )}

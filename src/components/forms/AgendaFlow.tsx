@@ -10,7 +10,6 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle, CalendarCheck, CheckCircle2, ExternalLink, Info } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { agenda, asuntoOptions, contactForm as cf } from "@content/contact";
 import { env } from "@/lib/env";
 import { agendaSchema, type AgendaInput } from "@/lib/validation";
@@ -20,8 +19,6 @@ import { DrawLine } from "@/components/motion/Reveal";
 import { Checkbox, Input, Select } from "./Field";
 import { cn } from "@/lib/utils";
 
-const EASE = [0.22, 1, 0.36, 1] as const;
-
 const Steps = ({ current }: { current: number }) => (
   <ol className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm" aria-label="Pasos de la reserva">
     {agenda.steps.map((s, i) => (
@@ -29,13 +26,13 @@ const Steps = ({ current }: { current: number }) => (
         <span
           className={cn(
             "flex size-7 items-center justify-center rounded-full border font-display text-xs tabular-nums transition-colors",
-            i < current ? "border-dorado bg-dorado/15 text-azul" : i === current ? "border-azul bg-azul text-blanco" : "border-gris text-carbon/50",
+            i < current ? "border-dorado bg-dorado/15 text-azul" : i === current ? "border-azul bg-azul text-blanco" : "border-gris text-carbon/70",
           )}
           aria-current={i === current ? "step" : undefined}
         >
           {i + 1}
         </span>
-        <span className={cn(i === current ? "font-medium text-azul" : "text-carbon/60")}>{s}</span>
+        <span className={cn(i === current ? "font-medium text-azul" : "text-carbon/70")}>{s}</span>
         {i < agenda.steps.length - 1 && <span className="hidden h-px w-6 bg-gris sm:block" aria-hidden />}
       </li>
     ))}
@@ -47,7 +44,6 @@ export const AgendaFlow = ({ defaultAsunto }: { defaultAsunto?: string }) => {
   const [ack, setAck] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "error">("idle");
   const [serverError, setServerError] = useState<string | null>(null);
-  const reduced = useReducedMotion();
   const today = new Date().toISOString().slice(0, 10);
 
   const {
@@ -96,25 +92,19 @@ export const AgendaFlow = ({ defaultAsunto }: { defaultAsunto?: string }) => {
     }
   };
 
+  // Cada paso se monta con una entrada CSS (key distinta → la animación se repite).
   const panel = (key: string, children: React.ReactNode) => (
-    <motion.div
-      key={key}
-      initial={{ opacity: 0, y: reduced ? 0 : 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: reduced ? 0 : -8 }}
-      transition={{ duration: reduced ? 0.15 : 0.35, ease: EASE }}
-    >
+    <div key={key} className="anim-rise [animation-duration:350ms]">
       {children}
-    </motion.div>
+    </div>
   );
 
   return (
-    <div className="rounded-brand border border-gris bg-blanco p-6 shadow-card md:p-10">
+    <div className="rounded-brand border border-gris bg-blanco p-5 shadow-card sm:p-6 md:p-10">
       <Steps current={step} />
       <DrawLine className="my-8" />
 
-      <AnimatePresence mode="wait">
-        {step === 0 &&
+      {step === 0 &&
           panel(
             "aviso",
             <div>
@@ -163,7 +153,10 @@ export const AgendaFlow = ({ defaultAsunto }: { defaultAsunto?: string }) => {
                   <Input id="a-correo" label={cf.fields.correo} type="email" autoComplete="email" error={errors.correo?.message} {...register("correo")} />
                   <Input id="a-telefono" label={cf.fields.telefono} type="tel" autoComplete="tel" placeholder="+52 55 0000 0000" hint={cf.fields.telefonoHint} error={errors.telefono?.message} {...register("telefono")} />
                   <Select id="a-asunto" label={cf.fields.asunto} options={asuntoOptions} placeholder="Selecciona una opción" error={errors.asunto?.message} {...register("asunto")} />
-                  <Select id="a-modalidad" label={agenda.fields.modalidad} options={env.modalidadesAgenda.map((m) => ({ value: m, label: m }))} error={errors.modalidad?.message} {...register("modalidad")} />
+                  {/* Modalidad: solo si VERITUM confirmó las opciones (NEXT_PUBLIC_MODALIDADES_AGENDA). */}
+                  {env.modalidadesAgenda.length > 0 && (
+                    <Select id="a-modalidad" label={agenda.fields.modalidad} options={env.modalidadesAgenda.map((m) => ({ value: m, label: m }))} error={errors.modalidad?.message} {...register("modalidad")} />
+                  )}
                   <Input id="a-urgente" label={agenda.fields.urgente} type="date" optional error={errors.urgente?.message} {...register("urgente")} />
                   <Input id="a-fecha" label={agenda.fields.fecha} type="date" min={today} error={errors.fecha?.message} {...register("fecha")} />
                   <Input id="a-hora" label={agenda.fields.hora} type="time" step={1800} error={errors.hora?.message} {...register("hora")} />
@@ -212,23 +205,21 @@ export const AgendaFlow = ({ defaultAsunto }: { defaultAsunto?: string }) => {
                   {...register("terminos")}
                 />
 
-                <AnimatePresence>
                   {status === "error" && serverError && (
-                    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} role="alert" className="flex gap-3 rounded-brand border border-[#b23b3b]/40 bg-[#fbf2f2] p-4 text-sm text-[#6d2323]">
+                    <div role="alert" className="anim-rise flex gap-3 rounded-brand border border-[#b23b3b]/40 bg-[#fbf2f2] p-4 text-sm text-[#6d2323] [animation-duration:250ms]">
                       <AlertTriangle className="size-5 shrink-0" strokeWidth={1.75} aria-hidden />
                       <div>
                         <p className="font-medium">{cf.errorTitle}</p>
                         <p className="mt-1">{serverError}</p>
                       </div>
-                    </motion.div>
+                    </div>
                   )}
-                </AnimatePresence>
 
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                   <Button type="submit" size="lg" arrow disabled={status === "sending"}>
                     {status === "sending" ? cf.sending : agenda.submit}
                   </Button>
-                  <p className="text-sm text-carbon/65">{cf.afterSubmit}</p>
+                  <p className="text-sm text-carbon/75">{cf.afterSubmit}</p>
                 </div>
               </form>
             ),
@@ -241,7 +232,7 @@ export const AgendaFlow = ({ defaultAsunto }: { defaultAsunto?: string }) => {
               <CheckCircle2 className="size-8 text-azul" strokeWidth={1.5} aria-hidden />
               <h2 className="font-display mt-4 type-h2 text-azul">{agenda.successTitle}</h2>
               <p className="measure mt-3 text-carbon/85">{agenda.successText(env.plazoRespuesta)}</p>
-              <div className="mt-8 flex items-center gap-3 text-sm text-carbon/65">
+              <div className="mt-8 flex items-center gap-3 text-sm text-carbon/75">
                 <CalendarCheck className="size-5 text-dorado-2" strokeWidth={1.5} aria-hidden />
                 <Link href="/proceso" className="link-text !underline">
                   Conoce qué ocurre después del primer contacto
@@ -249,7 +240,6 @@ export const AgendaFlow = ({ defaultAsunto }: { defaultAsunto?: string }) => {
               </div>
             </div>,
           )}
-      </AnimatePresence>
     </div>
   );
 };

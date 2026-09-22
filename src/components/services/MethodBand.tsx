@@ -10,7 +10,7 @@ export const MethodBand = () => (
       <Eyebrow className="!text-dorado">Método VERITUM</Eyebrow>
     </Reveal>
     <DrawLine color="blanco" className="mt-6" />
-    <Stagger as="ol" className="grid grid-cols-2 gap-x-6 gap-y-8 py-8 md:grid-cols-3 lg:grid-cols-6" amount={0.3}>
+    <Stagger as="ol" className="grid grid-cols-2 gap-x-6 gap-y-8 py-8 md:grid-cols-3 lg:grid-cols-6">
       {site.method.map((step, i) => (
         <StaggerItem as="li" key={step} className="flex flex-col gap-2">
           <span className="font-display text-sm tabular-nums text-dorado" aria-hidden>

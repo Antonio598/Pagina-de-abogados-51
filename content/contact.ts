@@ -52,8 +52,8 @@ export const contactForm = {
   afterSubmit:
     "Al enviar, tu solicitud llega al equipo de VERITUM, que la revisa y responde por el canal que elegiste.",
   successTitle: "Recibimos tu solicitud",
-  successText: (plazo: string, canal: string) =>
-    `VERITUM revisará tu mensaje y te responderá por ${canal} en un plazo de ${plazo}. El envío de este formulario no suspende plazos ni crea una relación abogado cliente.`,
+  successText: (plazo: string | undefined, canal: string) =>
+    `VERITUM revisará tu mensaje y te responderá por ${canal}${plazo ? ` en un plazo de ${plazo}` : ""}. El envío de este formulario no suspende plazos ni crea una relación abogado cliente.`,
   errorTitle: "No pudimos enviar tu solicitud",
   errorText: "Inténtalo de nuevo en unos minutos. Si tienes una fecha próxima, utiliza un canal de contacto directo.",
   maxChars: 1000,
@@ -97,8 +97,8 @@ export const agenda = {
   submit: "Solicitar reserva",
   externalLabel: "Elegir fecha y hora",
   successTitle: "Solicitud de reserva recibida",
-  successText: (plazo: string) =>
-    `VERITUM confirmará la disponibilidad, la modalidad y las condiciones de la asesoría en un plazo de ${plazo}, por correo electrónico. La reserva no está confirmada hasta recibir esa respuesta.`,
+  successText: (plazo: string | undefined) =>
+    `VERITUM confirmará la disponibilidad, la modalidad y las condiciones de la asesoría por correo electrónico${plazo ? ` en un plazo de ${plazo}` : ""}. La reserva no está confirmada hasta recibir esa respuesta.`,
   errors: {
     modalidad: "Selecciona una modalidad.",
     fecha: "Selecciona una fecha.",

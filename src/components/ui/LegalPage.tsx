@@ -19,19 +19,19 @@ export const LegalPage = ({ doc }: { doc: LegalDoc }) => (
           <div className="lg:sticky lg:top-28">
             <p className="eyebrow">Contenido</p>
             <DrawLine className="my-4" />
-            <ol className="space-y-2.5 text-[0.95rem]">
+            <ol className="space-y-1 text-[0.95rem]">
               {doc.sections.map((s, i) => (
                 <li key={s} className="flex gap-3">
                   <span className="font-display tabular-nums text-dorado-2" aria-hidden>
                     {pad2(i + 1)}
                   </span>
-                  <a href={`#seccion-${i + 1}`} className="link-text">
+                  <a href={`#seccion-${i + 1}`} className="link-text inline-block py-1.5">
                     {s}
                   </a>
                 </li>
               ))}
             </ol>
-            {doc.updatedAt && <p className="mt-6 text-sm text-carbon/60">Última actualización: {formatDate(doc.updatedAt)}</p>}
+            {doc.updatedAt && <p className="mt-6 text-sm text-carbon/70">Última actualización: {formatDate(doc.updatedAt)}</p>}
           </div>
         </nav>
 

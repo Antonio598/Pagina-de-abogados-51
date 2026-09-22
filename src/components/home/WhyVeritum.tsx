@@ -10,7 +10,7 @@ export const WhyVeritum = () => (
       <div className="lg:col-span-4">
         <SectionHeading number="04" eyebrow={site.pillars[2]} title={home.why.title} inverse className="mb-0 lg:sticky lg:top-28" />
       </div>
-      <Stagger as="ul" className="lg:col-span-8" amount={0.2}>
+      <Stagger as="ul" className="lg:col-span-8">
         {home.why.bullets.map((b, i) => (
           <StaggerItem as="li" key={b} className="group">
             <DrawLine color="blanco" delay={i * 0.08} />

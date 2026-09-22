@@ -1,99 +1,101 @@
 "use client";
 
-// Primitivas de movimiento. Fundidos y desplazamientos ligeros (150–250 ms por
-// elemento) coreografiados al entrar en viewport. Con prefers-reduced-motion
-// todo colapsa a un fundido de 150 ms sin desplazamiento.
+// Primitivas de movimiento sin librerías: un IntersectionObserver compartido
+// marca data-inview y el CSS (globals.css) hace el fundido, la cascada y la
+// línea que se dibuja. Con prefers-reduced-motion todo colapsa a un fundido de
+// 150 ms; sin JavaScript, el <noscript> del layout muestra todo de inmediato.
 
-import { motion, useReducedMotion, type Variants } from "motion/react";
-import type { ComponentPropsWithoutRef, ElementType, ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
-const EASE = [0.22, 1, 0.36, 1] as const;
+let observer: IntersectionObserver | null = null;
+const callbacks = new WeakMap<Element, () => void>();
 
-export const useBrandVariants = () => {
-  const reduced = useReducedMotion();
-  const item: Variants = {
-    hidden: { opacity: 0, y: reduced ? 0 : 14 },
-    show: { opacity: 1, y: 0, transition: { duration: reduced ? 0.15 : 0.5, ease: EASE } },
+const observe = (el: Element, cb: () => void) => {
+  if (typeof window === "undefined") return () => {};
+  if (!("IntersectionObserver" in window)) {
+    cb();
+    return () => {};
+  }
+  if (!observer) {
+    observer = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            callbacks.get(e.target)?.();
+            observer?.unobserve(e.target);
+            callbacks.delete(e.target);
+          }
+        }
+      },
+      { rootMargin: "0px 0px -8% 0px", threshold: 0.12 },
+    );
+  }
+  callbacks.set(el, cb);
+  observer.observe(el);
+  return () => {
+    observer?.unobserve(el);
+    callbacks.delete(el);
   };
-  const container: Variants = {
-    hidden: {},
-    show: { transition: { staggerChildren: reduced ? 0 : 0.07, delayChildren: 0.05 } },
-  };
-  return { item, container, reduced };
 };
+
+const useInView = <T extends HTMLElement>() => {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // Ya visible al montar (p. ej. por encima del pliegue): marcar en el siguiente frame
+    // para que la transición se vea, pero sin esperar al scroll.
+    return observe(el, () => el.setAttribute("data-inview", ""));
+  }, []);
+  return ref;
+};
+
+type Tag = "div" | "section" | "li" | "ul" | "ol" | "article" | "header" | "p" | "span" | "aside";
 
 type RevealProps = {
   children: ReactNode;
   className?: string;
   delay?: number;
-  as?: "div" | "section" | "li" | "article" | "header" | "p" | "span";
-  amount?: number;
-  once?: boolean;
+  as?: Tag;
+  style?: CSSProperties;
 };
 
-export const Reveal = ({ children, className, delay = 0, as = "div", amount = 0.2, once = true }: RevealProps) => {
-  const { item, reduced } = useBrandVariants();
-  const Tag = motion[as] as ElementType;
+/** Fundido + desplazamiento ligero al entrar en viewport. */
+export const Reveal = ({ children, className, delay = 0, as = "div", style }: RevealProps) => {
+  const ref = useInView<HTMLDivElement>();
+  const Tag = as as "div";
   return (
-    <Tag
-      className={className}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once, amount, margin: "0px 0px -40px 0px" }}
-      variants={{
-        ...item,
-        show: { ...item.show, transition: { duration: reduced ? 0.15 : 0.5, ease: EASE, delay } },
-      }}
-    >
+    <Tag ref={ref} data-reveal="" className={className} style={{ ...style, ["--reveal-delay" as string]: `${Math.round(delay * 1000)}ms` }}>
       {children}
     </Tag>
   );
 };
 
-type StaggerProps = {
-  children: ReactNode;
-  className?: string;
-  as?: "div" | "ul" | "ol" | "section";
-  amount?: number;
-} & Omit<ComponentPropsWithoutRef<"div">, "children" | "className">;
+type StaggerProps = { children: ReactNode; className?: string; as?: Tag; delay?: number };
 
-/** Contenedor que anima a sus hijos <StaggerItem> en cascada. */
-export const Stagger = ({ children, className, as = "div", amount = 0.15, ...rest }: StaggerProps) => {
-  const { container } = useBrandVariants();
-  const Tag = motion[as] as ElementType;
+/** Contenedor que anima a sus hijos <StaggerItem> en cascada (70 ms entre hijos). */
+export const Stagger = ({ children, className, as = "div", delay = 0 }: StaggerProps) => {
+  const ref = useInView<HTMLDivElement>();
+  const Tag = as as "div";
   return (
-    <Tag
-      className={className}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, amount, margin: "0px 0px -40px 0px" }}
-      variants={container}
-      {...rest}
-    >
+    <Tag ref={ref} data-stagger="" className={className} style={{ ["--reveal-delay" as string]: `${Math.round(delay * 1000)}ms` }}>
       {children}
     </Tag>
   );
 };
 
-export const StaggerItem = ({
-  children,
-  className,
-  as = "div",
-}: {
-  children: ReactNode;
-  className?: string;
-  as?: "div" | "li" | "article" | "a" | "p";
-}) => {
-  const { item } = useBrandVariants();
-  const Tag = motion[as] as ElementType;
+/** Hijo de <Stagger>. Recibe su índice para calcular el retardo. */
+export const StaggerItem = ({ children, className, as = "div", index }: { children: ReactNode; className?: string; as?: "div" | "li" | "article" | "p"; index?: number }) => {
+  const Tag = as as "div";
   return (
-    <Tag className={className} variants={item}>
+    <Tag className={className} style={index !== undefined ? ({ ["--i" as string]: index } as CSSProperties) : undefined}>
       {children}
     </Tag>
   );
 };
 
-/** Línea de 1 px que se dibuja de izquierda a derecha al entrar en viewport. */
+/** Línea de 1 px que se dibuja de izquierda a derecha (o de arriba abajo). */
 export const DrawLine = ({
   className,
   delay = 0,
@@ -105,17 +107,15 @@ export const DrawLine = ({
   vertical?: boolean;
   color?: "gold" | "azul" | "blanco";
 }) => {
-  const reduced = useReducedMotion();
+  const ref = useInView<HTMLDivElement>();
   const bg = color === "gold" ? "bg-dorado/40" : color === "azul" ? "bg-azul/20" : "bg-blanco/25";
   return (
-    <motion.div
+    <div
+      ref={ref}
       aria-hidden
-      className={`${vertical ? "w-px" : "h-px w-full"} ${bg} ${className ?? ""}`}
-      style={{ transformOrigin: vertical ? "top" : "left" }}
-      initial={{ [vertical ? "scaleY" : "scaleX"]: reduced ? 1 : 0, opacity: reduced ? 0 : 1 }}
-      whileInView={{ [vertical ? "scaleY" : "scaleX"]: 1, opacity: 1 }}
-      viewport={{ once: true, amount: 0.5 }}
-      transition={{ duration: reduced ? 0.15 : 0.9, ease: EASE, delay }}
+      data-draw={vertical ? "vertical" : ""}
+      className={cn(vertical ? "w-px" : "h-px w-full", bg, className)}
+      style={{ ["--reveal-delay" as string]: `${Math.round(delay * 1000)}ms` }}
     />
   );
 };

@@ -11,7 +11,7 @@ type Props = { inverse?: boolean; className?: string; section: string };
 /** Datos de contacto: solo se muestran los definidos en variables de entorno. */
 export const ContactLinks = ({ inverse, className, section }: Props) => {
   const text = inverse ? "text-marfil/85" : "text-carbon";
-  const label = inverse ? "text-marfil/55" : "text-carbon/55";
+  const label = inverse ? "text-marfil/55" : "text-carbon/70";
   const icon = cn("mt-1 size-[18px] shrink-0", inverse ? "text-dorado" : "text-dorado-2");
   const link = cn("underline-offset-4 hover:underline", inverse ? "hover:text-blanco" : "hover:text-azul");
 

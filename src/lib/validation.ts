@@ -41,7 +41,7 @@ export const agendaSchema = z.object({
   correo: z.string().trim().email(e.correo).max(160, e.correo),
   telefono: phone,
   asunto: z.enum(asuntoValues, { message: e.asunto }),
-  modalidad: z.string().trim().min(1, "Selecciona una modalidad."),
+  modalidad: z.string().trim().optional(),
   fecha: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Selecciona una fecha."),
   hora: z.string().trim().regex(/^\d{2}:\d{2}$/, "Selecciona una hora."),
   urgente: optionalDate,

@@ -63,7 +63,6 @@ body {
   font-weight: 400;
   letter-spacing: -0.015em;
   line-height: 1.08;
-  font-variation-settings: "opsz" 144, "SOFT" 30;
 }
 
 @utility type-h1 {
@@ -183,7 +182,21 @@ body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 150ms !important;
+    transition-delay: 0ms !important;
   }
+  [data-reveal],
+  [data-stagger] > *,
+  [data-draw] {
+    transform: none !important;
+  }
+}
+
+/* Zonas seguras en iPhone (notch / barra inferior) -------------------- */
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@utility mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* Detalles de formularios --------------------------------------------- */
@@ -202,6 +215,173 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     border-radius: 999px;
     border: 3px solid var(--color-marfil);
   }
+}
+
+/* ------------------------------------------------------------------
+   Movimiento sin JavaScript pesado. Los elementos [data-reveal] entran con
+   un fundido + desplazamiento ligero cuando un IntersectionObserver les pone
+   data-inview. Sin JS (noscript) o sin IO se muestran de inmediato.
+------------------------------------------------------------------- */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 500ms var(--ease-brand),
+    transform 500ms var(--ease-brand);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+[data-reveal][data-inview] {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+/* Cascada: el contenedor recibe data-inview y cada hijo usa --i */
+[data-stagger] > * {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 500ms var(--ease-brand),
+    transform 500ms var(--ease-brand);
+  transition-delay: calc(var(--i, 0) * 70ms + var(--reveal-delay, 0ms));
+}
+[data-stagger][data-inview] > * {
+  opacity: 1;
+  transform: none;
+}
+[data-stagger] > :nth-child(1) {
+  --i: 0;
+}
+[data-stagger] > :nth-child(2) {
+  --i: 1;
+}
+[data-stagger] > :nth-child(3) {
+  --i: 2;
+}
+[data-stagger] > :nth-child(4) {
+  --i: 3;
+}
+[data-stagger] > :nth-child(5) {
+  --i: 4;
+}
+[data-stagger] > :nth-child(6) {
+  --i: 5;
+}
+[data-stagger] > :nth-child(7) {
+  --i: 6;
+}
+[data-stagger] > :nth-child(8) {
+  --i: 7;
+}
+[data-stagger] > :nth-child(9) {
+  --i: 8;
+}
+[data-stagger] > :nth-child(10) {
+  --i: 9;
+}
+[data-stagger] > :nth-child(11) {
+  --i: 10;
+}
+[data-stagger] > :nth-child(12) {
+  --i: 11;
+}
+/* Línea que se dibuja */
+[data-draw] {
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 900ms var(--ease-brand);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+[data-draw="vertical"] {
+  transform: scaleY(0);
+  transform-origin: top;
+}
+[data-draw][data-inview] {
+  transform: none;
+}
+
+/* Entradas al montar (hero, paneles, menús) */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes slide-in-x {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes draw-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@utility anim-rise {
+  animation: rise-in 600ms var(--ease-brand) both;
+  animation-delay: var(--d, 0ms);
+}
+/* Variante para el elemento LCP: solo desplazamiento, sin partir de opacidad 0,
+   para que el navegador lo cuente como pintado desde el primer frame. */
+@keyframes rise-in-lcp {
+  from {
+    transform: translateY(10px);
+  }
+  to {
+    transform: none;
+  }
+}
+@utility anim-rise-lcp {
+  animation: rise-in-lcp 500ms var(--ease-brand) both;
+  animation-delay: var(--d, 0ms);
+}
+@utility anim-fade {
+  animation: fade-in 400ms var(--ease-brand) both;
+  animation-delay: var(--d, 0ms);
+}
+@utility anim-slide-x {
+  animation: slide-in-x 450ms var(--ease-brand) both;
+  animation-delay: var(--d, 0ms);
+}
+@utility anim-draw-x {
+  transform-origin: left;
+  animation: draw-x 700ms var(--ease-brand) both;
+  animation-delay: var(--d, 0ms);
+}
+
+/* Acordeón con transición de altura (grid-template-rows) */
+.acc-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 250ms var(--ease-brand), opacity 250ms var(--ease-brand);
+  opacity: 0;
+}
+.acc-panel[data-open] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.acc-panel > * {
+  overflow: hidden;
 }
 
 /* Transición de entrada de página ------------------------------------- */

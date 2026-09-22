@@ -18,7 +18,7 @@ export const LibraryTeaser = () => (
           </ButtonLink>
         </Reveal>
       </div>
-      <Stagger as="ul" className="divide-y divide-gris border-y border-gris lg:col-span-7" amount={0.2}>
+      <Stagger as="ul" className="divide-y divide-gris border-y border-gris lg:col-span-7">
         {resources.map((r) => (
           <StaggerItem as="li" key={r.slug}>
             <Link

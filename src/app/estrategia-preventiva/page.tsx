@@ -28,7 +28,7 @@ export default function PreventivePage() {
       <PageHero eyebrow={site.pillars[3]} title={preventive.title} text={preventive.intro} />
 
       <Section tone="blanco" className="pt-0 md:pt-0 lg:pt-0">
-        <Stagger className="grid gap-6 lg:grid-cols-2" amount={0.15}>
+        <Stagger className="grid gap-6 lg:grid-cols-2">
           {columns.map(({ key, icon: Icon, block }, i) => (
             <StaggerItem key={key} className="rounded-brand border border-gris bg-marfil p-7 md:p-10">
               <div className="flex items-center gap-4">

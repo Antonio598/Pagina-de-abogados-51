@@ -8,7 +8,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Script from "next/script";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { AnimatePresence, motion } from "motion/react";
 import { env } from "@/lib/env";
 import { captureUtm, track } from "@/lib/analytics";
 import { Button } from "@/components/ui/Button";
@@ -113,16 +112,11 @@ export const Analytics = () => {
         </Script>
       )}
 
-      <AnimatePresence>
-        {consent === null && (
-          <motion.div
+      {consent === null && (
+          <div
             role="region"
             aria-label="Consentimiento de cookies"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 12 }}
-            transition={{ duration: 0.25 }}
-            className="fixed inset-x-3 bottom-3 z-[60] mx-auto max-w-2xl rounded-brand border border-gris bg-blanco p-5 shadow-card-hover md:inset-x-6"
+            className="anim-rise mb-safe fixed inset-x-3 bottom-3 z-[60] mx-auto max-w-2xl rounded-brand border border-gris bg-blanco p-5 shadow-card-hover md:inset-x-6"
           >
             <p className="text-[0.95rem] text-carbon">
               Usamos cookies de analítica y, si lo autorizas, de publicidad, para entender cómo se usa el sitio. Puedes cambiar tu decisión en{" "}
@@ -162,9 +156,8 @@ export const Analytics = () => {
                 </Button>
               )}
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </>
   );
 };

@@ -16,7 +16,7 @@ export const HelpSelector = () => (
         <h2 id="selector-title" className="font-display type-h3 text-azul">
           {home.selector.title}
         </h2>
-        <Stagger as="ul" className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" amount={0.3}>
+        <Stagger as="ul" className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {services.map((s) => (
             <StaggerItem as="li" key={s.slug}>
               <Link

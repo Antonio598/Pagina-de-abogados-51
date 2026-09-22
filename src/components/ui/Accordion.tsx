@@ -2,16 +2,15 @@
 
 import { useId, useState } from "react";
 import { Plus } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { Faq } from "@content/faqs";
 import { cn } from "@/lib/utils";
 
 type Props = { items: Faq[]; className?: string; inverse?: boolean; defaultOpen?: number };
 
+/** Acordeón accesible; la altura se anima con CSS (grid-template-rows), sin librerías. */
 export const Accordion = ({ items, className, inverse, defaultOpen }: Props) => {
   const [open, setOpen] = useState<number | null>(defaultOpen ?? null);
   const base = useId();
-  const reduced = useReducedMotion();
 
   return (
     <div className={cn("divide-y", inverse ? "divide-blanco/15" : "divide-gris", className)}>
@@ -46,22 +45,11 @@ export const Accordion = ({ items, className, inverse, defaultOpen }: Props) => 
                 </span>
               </button>
             </h3>
-            <AnimatePresence initial={false}>
-              {isOpen && (
-                <motion.div
-                  id={panelId}
-                  role="region"
-                  aria-labelledby={btnId}
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: reduced ? 0.15 : 0.25, ease: [0.22, 1, 0.36, 1] }}
-                  className="overflow-hidden"
-                >
-                  <p className={cn("measure pb-6 pr-12 text-pretty", inverse ? "text-marfil/80" : "text-carbon/85")}>{item.a}</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <div id={panelId} role="region" aria-labelledby={btnId} className="acc-panel" data-open={isOpen ? "" : undefined} aria-hidden={!isOpen}>
+              <div>
+                <p className={cn("measure pb-6 pr-12 text-pretty", inverse ? "text-marfil/80" : "text-carbon/85")}>{item.a}</p>
+              </div>
+            </div>
           </div>
         );
       })}

@@ -16,7 +16,7 @@ export const FaqEssentials = () => {
         <div className="lg:col-span-4">
           <SectionHeading number="06" eyebrow="Antes de contactar" title={home.faqTitle} className="mb-6" />
           <Reveal>
-            <Link href="/contacto#preguntas-frecuentes" className="link-text text-[0.95rem] font-medium">
+            <Link href="/contacto#preguntas-frecuentes" className="link-text inline-block py-2 text-[0.95rem] font-medium">
               Ver todas las preguntas frecuentes
             </Link>
           </Reveal>

@@ -25,7 +25,7 @@ export default function LibraryPage() {
         <Reveal>
           <LibraryGrid resources={resources} />
         </Reveal>
-        <p className="mt-10 text-sm text-carbon/60">{library.notice}</p>
+        <p className="mt-10 text-sm text-carbon/70">{library.notice}</p>
       </Section>
       <ClosingCta title={home.closing.title} text={home.closing.text} cta={home.closing.cta} section="library_closing" />
     </>

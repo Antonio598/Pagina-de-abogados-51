@@ -19,11 +19,11 @@ const Wrapper = ({ id, label, hint, error, optional, className, children }: Base
   <div className={cn("flex flex-col gap-1.5", className)}>
     <label htmlFor={id} className="text-[0.95rem] font-medium text-azul">
       {label}
-      {optional && <span className="ml-2 text-xs font-normal uppercase tracking-wider text-carbon/50">Opcional</span>}
+      {optional && <span className="ml-2 text-xs font-normal uppercase tracking-wider text-carbon/70">Opcional</span>}
     </label>
     {children}
     {hint && !error && (
-      <p id={`${id}-hint`} className="text-sm text-carbon/60">
+      <p id={`${id}-hint`} className="text-sm text-carbon/70">
         {hint}
       </p>
     )}
@@ -54,7 +54,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({ id, la
   <Wrapper id={id} label={label} hint={hint} error={error} optional={optional} className={className}>
     <textarea ref={ref} id={id} rows={5} className={cn(control, "resize-y", error ? "border-[#b23b3b]" : "border-gris")} {...aria(id, error, hint)} {...rest} />
     {count && (
-      <p className={cn("text-right text-xs tabular-nums", count.value > count.max ? "text-[#8a2f2f]" : "text-carbon/50")} aria-live="polite">
+      <p className={cn("text-right text-xs tabular-nums", count.value > count.max ? "text-[#8a2f2f]" : "text-carbon/70")} aria-live="polite">
         {count.value.toLocaleString("es-MX")} / {count.max.toLocaleString("es-MX")}
       </p>
     )}
@@ -81,7 +81,7 @@ type CheckboxProps = Omit<ComponentPropsWithoutRef<"input">, "type"> & { id: str
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(({ id, label, error, className, ...rest }, ref) => (
   <div className={cn("flex flex-col gap-1.5", className)}>
     <label htmlFor={id} className="flex items-start gap-3 text-[0.95rem] text-carbon">
-      <input ref={ref} id={id} type="checkbox" className="mt-1 size-4 shrink-0 accent-azul" aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : undefined} {...rest} />
+      <input ref={ref} id={id} type="checkbox" className="mt-0.5 size-5 shrink-0 accent-azul" aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : undefined} {...rest} />
       <span>{label}</span>
     </label>
     {error && (

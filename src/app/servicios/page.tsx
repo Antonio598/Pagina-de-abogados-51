@@ -24,7 +24,7 @@ export default function ServicesPage() {
       <PageHero eyebrow={site.descriptor} title={servicesLabels.title} text={seo.servicios.description} compact />
 
       <Section tone="marfil" className="pt-0 md:pt-0 lg:pt-0">
-        <Stagger className="grid gap-6 md:grid-cols-2" amount={0.1}>
+        <Stagger className="grid gap-6 md:grid-cols-2">
           {services.map((s, i) => (
             <StaggerItem key={s.slug} className="h-full">
               <ServiceCard service={s} index={i} large />

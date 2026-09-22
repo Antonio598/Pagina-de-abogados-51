@@ -1,8 +1,5 @@
-"use client";
-
-import { ButtonLink } from "@/components/ui/Button";
 import { DrawLine, Reveal } from "@/components/motion/Reveal";
-import { track } from "@/lib/analytics";
+import { TrackedLink } from "@/components/ui/TrackedLink";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -25,15 +22,9 @@ export const ClosingCta = ({ title, text, cta, tone = "marfil", section = "closi
           <h2 className={cn("font-display type-h1 text-balance", inverse ? "text-blanco" : "text-azul")}>{title}</h2>
           {text && <p className={cn("mx-auto mt-6 max-w-2xl text-pretty", inverse ? "text-marfil/80" : "text-carbon/80")}>{text}</p>}
           <div className="mt-10">
-            <ButtonLink
-              href={cta.href}
-              size="lg"
-              arrow
-              variant={inverse ? "inverse" : "primary"}
-              onClick={() => track("cta_agenda", { section, element_id: `${section}_agenda` })}
-            >
+            <TrackedLink href={cta.href} size="lg" arrow variant={inverse ? "inverse" : "primary"} event="cta_agenda" payload={{ section, element_id: `${section}_agenda` }}>
               {cta.label}
-            </ButtonLink>
+            </TrackedLink>
           </div>
         </Reveal>
       </div>

@@ -1,47 +1,64 @@
-// PROVISIONAL: reemplazar por el archivo SVG oficial del logotipo VERITUM.
-// Este componente es un wordmark tipográfico neutro (VERITUM + descriptor +
-// líneas laterales) para que el sitio funcione mientras se recibe el logotipo.
-// No es una reinterpretación del logo oficial. Al recibir el SVG:
-//   1. Guardar en /public/brand/veritum.svg (y veritum-inverse.svg para fondos azules).
-//   2. Sustituir el contenido de este componente por <Image src="/brand/veritum.svg" …/>.
-//   3. Reemplazar /public/icon.svg por la versión simplificada oficial.
+// Logotipo oficial de VERITUM.
+//
+// Se usa el archivo entregado por la firma tal cual: no se redibuja, no se
+// recolorea, no se deforma y no se le añade el tagline. Los tamaños derivados
+// se generan con `node scripts/generate-brand-assets.mjs` a partir de
+// public/brand/veritum-logo-master.png.
+//
+// Sobre fondo azul el logotipo va dentro de una superficie clara (variante
+// `inverse`), porque su versión monocromática invertida todavía no existe.
 
+import Image from "next/image";
 import Link from "next/link";
 import { site } from "@content/site";
 import { cn } from "@/lib/utils";
 
+// Proporción del archivo original, ya recortado: 1814 × 399.
+const RATIO = 1814 / 399;
+
+const ALTURAS = { sm: 26, md: 34, lg: 44 } as const;
+
 type LogoProps = {
+  /** Sobre fondos oscuros: coloca el logotipo en una superficie clara. */
   inverse?: boolean;
   className?: string;
   asLink?: boolean;
-  size?: "sm" | "md" | "lg";
+  size?: keyof typeof ALTURAS;
+  priority?: boolean;
 };
 
-export const Logo = ({ inverse, className, asLink = true, size = "md" }: LogoProps) => {
-  const word = inverse ? "text-blanco" : "text-azul";
-  const line = inverse ? "bg-dorado" : "bg-dorado";
-  const desc = inverse ? "text-marfil/75" : "text-dorado-2";
-  // Escala responsiva: en móvil el logo es compacto para que el header nunca desborde.
-  const scale = size === "sm" ? "text-[1rem] tracking-[0.16em] md:tracking-[0.22em]" : size === "lg" ? "text-[1.6rem] tracking-[0.22em] md:text-[2rem]" : "text-[1rem] tracking-[0.16em] md:text-[1.45rem] md:tracking-[0.22em]";
-  const descScale = size === "sm" ? "text-[0.5rem] tracking-[0.22em] md:tracking-[0.3em]" : size === "lg" ? "text-[0.62rem] tracking-[0.3em] md:text-[0.72rem]" : "text-[0.5rem] tracking-[0.22em] md:text-[0.56rem] md:tracking-[0.3em]";
+export const Logo = ({ inverse, className, asLink = true, size = "md", priority }: LogoProps) => {
+  const alto = ALTURAS[size];
+  const ancho = Math.round(alto * RATIO);
 
-  const mark = (
-    <span className={cn("inline-flex flex-col items-center leading-none select-none", className)}>
-      <span className="flex items-center gap-2 md:gap-2.5">
-        <span className={cn("h-px w-3 md:w-5", line)} aria-hidden />
-        <span className={cn("font-display font-medium", word, scale)}>{site.name}</span>
-        <span className={cn("h-px w-3 md:w-5", line)} aria-hidden />
-      </span>
-      <span className={cn("mt-1.5 whitespace-nowrap font-sans font-semibold uppercase", desc, descScale)}>
-        {site.descriptor}
-      </span>
+  const marca = (
+    <span
+      className={cn(
+        "inline-flex select-none items-center",
+        // Área de protección: el logotipo siempre respira.
+        inverse ? "rounded-brand bg-marfil px-4 py-3" : "py-1",
+        className,
+      )}
+    >
+      {/* `unoptimized`: los tamaños ya vienen generados por el script de marca,
+          así que no hace falta el optimizador en tiempo de ejecución. */}
+      <Image
+        src={alto >= 40 ? "/brand/veritum-logo-880.png" : "/brand/veritum-logo-440.png"}
+        alt={`${site.name} · ${site.descriptor}`}
+        width={ancho}
+        height={alto}
+        priority={priority}
+        unoptimized
+        className="w-auto"
+        style={{ height: `${alto}px` }}
+      />
     </span>
   );
 
-  if (!asLink) return mark;
+  if (!asLink) return marca;
   return (
-    <Link href="/" title="Ir al inicio" className="inline-flex rounded-brand p-1">
-      {mark}
+    <Link href="/" title="Ir al inicio" className="inline-flex rounded-brand">
+      {marca}
     </Link>
   );
 };

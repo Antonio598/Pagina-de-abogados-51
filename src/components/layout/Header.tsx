@@ -103,7 +103,7 @@ export const Header = () => {
             scrolled ? "h-16" : "h-[68px] md:h-[76px]",
           )}
         >
-          <Logo size={scrolled ? "sm" : "md"} />
+          <Logo size={scrolled ? "sm" : "md"} priority />
 
           {/* Navegación de escritorio */}
           <nav aria-label="Principal" className="hidden xl:block">

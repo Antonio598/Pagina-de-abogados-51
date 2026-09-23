@@ -1,6 +1,0 @@
-<!-- PROVISIONAL: sustituir por la versión simplificada oficial del logotipo VERITUM. -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <rect width="64" height="64" rx="8" fill="#0D224C"/>
-  <path d="M17 20 L32 46 L47 20" fill="none" stroke="#F7F4ED" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M10 52 H54" stroke="#CA9E32" stroke-width="1.5" stroke-linecap="round"/>
-</svg>

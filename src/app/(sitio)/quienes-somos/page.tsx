@@ -23,7 +23,7 @@ export default function AboutPage() {
     <>
       <Breadcrumbs items={[{ name: "Inicio", href: "/" }, { name: "Quiénes somos", href: "/quienes-somos" }]} />
       <PageHero
-        eyebrow={site.descriptor}
+        eyebrow={site.coverage}
         title={about.title}
         text={about.paragraphs[0]}
         aside={

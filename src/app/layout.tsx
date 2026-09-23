@@ -22,7 +22,13 @@ export const metadata: Metadata = {
   openGraph: { type: "website", locale: "es_MX", siteName: site.name },
   twitter: { card: "summary_large_image" },
   robots: { index: true, follow: true },
-  icons: { icon: "/icon.svg" },
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/apple-icon.png",
+  },
 };
 
 export const viewport: Viewport = {

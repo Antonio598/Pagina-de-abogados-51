@@ -16,7 +16,7 @@ export const Hero = () => (
       <div className="lg:col-span-7">
         <p className="eyebrow anim-rise flex items-center gap-3" style={d(0)}>
           <span className="h-px w-8 bg-dorado" aria-hidden />
-          {site.descriptor}
+          {site.coverage}
         </p>
         <h1 className="font-display type-h1 anim-rise-lcp mt-6 max-w-[16ch] text-balance text-azul" style={d(80)}>
           {home.hero.title}

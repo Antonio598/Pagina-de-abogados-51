@@ -55,7 +55,7 @@ Los textos son **literales y aprobados**. Cualquier cambio requiere autorizació
 
 ## 4. Pendientes bloqueantes antes del lanzamiento
 
-- [ ] **Logotipo oficial (SVG)** — hoy hay un wordmark provisional en `src/components/layout/Logo.tsx`, `public/icon.svg` y `src/app/opengraph-image.tsx` (buscar `PROVISIONAL`). Sustituir por el archivo oficial sin redibujarlo.
+- [x] ~~Logotipo oficial~~ — integrado desde `public/brand/veritum-logo-master.png`. Los tamaños y los íconos se regeneran con `node scripts/generate-brand-assets.mjs`. Pendiente menor: pedir a VERITUM el **archivo vectorial (SVG/AI)** y la **versión simplificada oficial** para el favicon; hoy el emblema se aísla del propio PNG oficial.
 - [ ] **Avisos legales** — `content/legal.ts` solo tiene la estructura; las páginas muestran una nota de publicación pendiente. Cargar el texto entregado por VERITUM en `body`.
 - [ ] **Datos de contacto, horario, modalidad, redes** — variables `NEXT_PUBLIC_*`.
 - [ ] **Precio, duración y política de cancelación** de la asesoría — variables; hasta entonces no se muestran.
@@ -90,6 +90,18 @@ src/components/motion/   Reveal, Stagger, DrawLine, useScrollProgress (CSS + Int
 src/lib/                 env, analytics, tracking propio, booking, pricing, promo,
                          stripe, db (Supabase), panel-auth, schema (JSON-LD), validación
 ```
+
+## 6.1 Logotipo
+
+El archivo maestro es `public/brand/veritum-logo-master.png`, tal como lo entregó VERITUM. De él se derivan, con `node scripts/generate-brand-assets.mjs`:
+
+| Archivo | Para qué |
+| --- | --- |
+| `public/brand/veritum-logo-440.png` y `-880.png` | Logotipo horizontal del encabezado, el pie y la landing |
+| `public/icon.png`, `icon-192.png`, `apple-icon.png` | Favicon e íconos de móvil (emblema sobre fondo marfil) |
+| `public/brand/veritum-emblema.png` | Emblema aislado con fondo transparente |
+
+El logotipo nunca se redibuja, recolorea ni deforma, y el tagline sigue siendo un elemento tipográfico aparte. Sobre fondo azul se coloca dentro de una superficie marfil (`<Logo inverse />`), porque no existe una versión invertida oficial. Si VERITUM entrega un archivo nuevo, se reemplaza el maestro y se vuelve a ejecutar el script.
 
 ## 7. Accesibilidad y rendimiento
 

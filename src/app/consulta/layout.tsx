@@ -21,7 +21,7 @@ export default async function ConsultaLayout({ children }: LayoutProps<"/consult
 
       <header className="sticky top-0 z-40 border-b border-gris bg-marfil">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-4 py-2.5 sm:gap-3">
-          <Logo size="sm" asLink={false} />
+          <Logo size="sm" asLink={false} priority />
           <PromoBar restanteMs={promo.restanteMs} enabled={promo.enabled} />
         </div>
       </header>

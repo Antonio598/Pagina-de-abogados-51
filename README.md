@@ -128,9 +128,10 @@ Navegación completa por teclado (menú móvil con trampa de foco y Esc), foco v
 ### 8.2 Puesta en marcha
 
 **1) Supabase**
-1. Crea el proyecto y abre *SQL Editor*.
-2. Pega [supabase/schema.sql](supabase/schema.sql) completo y ejecútalo (es idempotente).
-3. Copia `SUPABASE_URL` y la **service role key** a las variables de entorno. Esa clave es secreta y solo se usa en el servidor; RLS queda activo y sin políticas públicas, así que la clave anónima no puede leer nada.
+1. Abre el proyecto (puede ser uno que ya uses para otra app) y entra a *SQL Editor*.
+2. Pega [supabase/schema.sql](supabase/schema.sql) completo y ejecútalo. Crea el esquema **`veritum`**, separado de `public`, así que no toca nada de tus otras aplicaciones. Es idempotente: puedes volver a ejecutarlo.
+3. **Settings → API → "Exposed schemas"**: añade `veritum` a la lista. Sin este paso la aplicación no puede leer ni escribir (error `PGRST106`).
+4. Copia `SUPABASE_URL` y la **service role key** a las variables de entorno. Esa clave es secreta y solo se usa en el servidor; RLS queda activo y sin políticas públicas, así que la clave anónima no puede leer nada.
 
 **2) Stripe**
 1. Crea el producto "Asesoría legal inicial" con dos precios: normal y promocional.

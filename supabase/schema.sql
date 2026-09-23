@@ -1,38 +1,44 @@
 -- ============================================================================
 -- VERITUM — esquema de base de datos (Supabase / PostgreSQL)
 --
--- Cómo aplicarlo:
---   Supabase → SQL Editor → pega este archivo completo → Run.
---   Es idempotente: puede ejecutarse varias veces sin romper nada.
+-- Todo vive en el esquema `veritum`, aparte de `public`: puedes usar el mismo
+-- proyecto de Supabase para otras aplicaciones sin que se mezclen.
 --
--- Seguridad: RLS activado en todas las tablas y SIN políticas públicas.
--- Solo el servidor (service role key) puede leer y escribir. La clave anon
--- no tiene acceso a ningún dato. Nunca expongas SUPABASE_SERVICE_ROLE_KEY
--- en el navegador.
+-- CÓMO APLICARLO
+--   1. Supabase → SQL Editor → pega este archivo completo → Run.
+--      Es idempotente: puede ejecutarse varias veces sin romper nada.
+--   2. Supabase → Settings → API → "Exposed schemas": añade `veritum`
+--      junto a los que ya estén. SIN ESTE PASO la aplicación no podrá leer
+--      ni escribir (error PGRST106).
+--
+-- SEGURIDAD
+--   RLS activado en todas las tablas y SIN políticas públicas: solo el
+--   servidor, con la service role key, puede leer y escribir. La clave anon
+--   no tiene acceso a ningún dato. Nunca expongas SUPABASE_SERVICE_ROLE_KEY
+--   en el navegador.
 -- ============================================================================
 
-create extension if not exists "pgcrypto";
-create extension if not exists "btree_gist";
+create schema if not exists veritum;
 
 -- ---------------------------------------------------------------------------
 -- Tipos
 -- ---------------------------------------------------------------------------
 do $$ begin
-  create type appointment_status as enum ('pendiente_pago', 'pagada', 'cancelada', 'expirada');
+  create type veritum.appointment_status as enum ('pendiente_pago', 'pagada', 'cancelada', 'expirada');
 exception when duplicate_object then null; end $$;
 
 do $$ begin
-  create type appointment_origin as enum ('landing', 'sitio');
+  create type veritum.appointment_origin as enum ('landing', 'sitio');
 exception when duplicate_object then null; end $$;
 
 -- ---------------------------------------------------------------------------
 -- Citas
 -- ---------------------------------------------------------------------------
-create table if not exists appointments (
+create table if not exists veritum.appointments (
   id uuid primary key default gen_random_uuid(),
   folio text not null unique,
-  status appointment_status not null default 'pendiente_pago',
-  origen appointment_origin not null default 'landing',
+  status veritum.appointment_status not null default 'pendiente_pago',
+  origen veritum.appointment_origin not null default 'landing',
 
   -- Horario reservado (siempre en UTC; la zona de trabajo se aplica al mostrar)
   slot_start timestamptz not null,
@@ -72,22 +78,22 @@ create table if not exists appointments (
   updated_at timestamptz not null default now()
 );
 
-create index if not exists appointments_slot_start_idx on appointments (slot_start);
-create index if not exists appointments_status_idx on appointments (status);
-create index if not exists appointments_created_at_idx on appointments (created_at desc);
+create index if not exists appointments_slot_start_idx on veritum.appointments (slot_start);
+create index if not exists appointments_status_idx on veritum.appointments (status);
+create index if not exists appointments_created_at_idx on veritum.appointments (created_at desc);
 
 -- Un horario no puede tener dos citas que lo ocupen. Ocupan la pagada y la
--- pendiente de pago cuyo hold sigue vigente; el resto (cancelada, expirada) no.
+-- pendiente de pago; el resto (cancelada, expirada) libera el hueco.
 create unique index if not exists appointments_slot_unico
-  on appointments (slot_start)
+  on veritum.appointments (slot_start)
   where status in ('pagada', 'pendiente_pago');
 
 -- ---------------------------------------------------------------------------
 -- Disponibilidad: reglas semanales
 -- ---------------------------------------------------------------------------
-create table if not exists availability_rules (
+create table if not exists veritum.availability_rules (
   id uuid primary key default gen_random_uuid(),
-  -- 0 = domingo … 6 = sábado (igual que JS getDay en la zona de trabajo)
+  -- 0 = domingo … 6 = sábado
   weekday smallint not null check (weekday between 0 and 6),
   hora_inicio time not null,
   hora_fin time not null,
@@ -99,7 +105,7 @@ create table if not exists availability_rules (
 -- ---------------------------------------------------------------------------
 -- Disponibilidad: bloqueos puntuales (vacaciones, audiencias, etc.)
 -- ---------------------------------------------------------------------------
-create table if not exists availability_blocks (
+create table if not exists veritum.availability_blocks (
   id uuid primary key default gen_random_uuid(),
   inicio timestamptz not null,
   fin timestamptz not null,
@@ -108,12 +114,12 @@ create table if not exists availability_blocks (
   check (fin > inicio)
 );
 
-create index if not exists availability_blocks_rango_idx on availability_blocks (inicio, fin);
+create index if not exists availability_blocks_rango_idx on veritum.availability_blocks (inicio, fin);
 
 -- ---------------------------------------------------------------------------
 -- Eventos de página (medición propia, sin datos personales ni IP)
 -- ---------------------------------------------------------------------------
-create table if not exists page_events (
+create table if not exists veritum.page_events (
   id bigserial primary key,
   session_id text not null,
   path text not null,
@@ -127,14 +133,14 @@ create table if not exists page_events (
   created_at timestamptz not null default now()
 );
 
-create index if not exists page_events_created_at_idx on page_events (created_at desc);
-create index if not exists page_events_area_idx on page_events (area, created_at desc);
-create unique index if not exists page_events_session_path_idx on page_events (session_id, path, created_at);
+create index if not exists page_events_created_at_idx on veritum.page_events (created_at desc);
+create index if not exists page_events_area_idx on veritum.page_events (area, created_at desc);
+create index if not exists page_events_sesion_idx on veritum.page_events (session_id, path, created_at desc);
 
 -- ---------------------------------------------------------------------------
 -- Eventos de Stripe ya procesados (idempotencia del webhook)
 -- ---------------------------------------------------------------------------
-create table if not exists stripe_events (
+create table if not exists veritum.stripe_events (
   id text primary key,
   tipo text not null,
   procesado_at timestamptz not null default now()
@@ -147,9 +153,9 @@ create table if not exists stripe_events (
 -- si el horario sigue libre. Si otra persona lo tomó, devuelve NULL y la API
 -- responde "ese horario ya no está disponible".
 -- ---------------------------------------------------------------------------
-create or replace function reservar_slot(
+create or replace function veritum.reservar_slot(
   p_folio text,
-  p_origen appointment_origin,
+  p_origen veritum.appointment_origin,
   p_slot_start timestamptz,
   p_slot_end timestamptz,
   p_hold_minutos integer,
@@ -168,16 +174,16 @@ create or replace function reservar_slot(
   p_promo_aplicada boolean,
   p_aviso_version text,
   p_utm jsonb
-) returns appointments
+) returns veritum.appointments
 language plpgsql
 security definer
-set search_path = public
+set search_path = veritum, public
 as $$
 declare
-  v_row appointments;
+  v_row veritum.appointments;
 begin
   -- 1) Liberar holds vencidos (solo afecta a pendientes de pago)
-  update appointments
+  update veritum.appointments
      set status = 'expirada', updated_at = now()
    where status = 'pendiente_pago'
      and hold_expires_at is not null
@@ -185,7 +191,7 @@ begin
 
   -- 2) El horario debe seguir libre y no estar bloqueado
   if exists (
-    select 1 from appointments
+    select 1 from veritum.appointments
      where slot_start = p_slot_start
        and status in ('pagada', 'pendiente_pago')
   ) then
@@ -193,14 +199,14 @@ begin
   end if;
 
   if exists (
-    select 1 from availability_blocks
+    select 1 from veritum.availability_blocks
      where inicio < p_slot_end and fin > p_slot_start
   ) then
     return null;
   end if;
 
   -- 3) Insertar la cita reteniendo el horario
-  insert into appointments (
+  insert into veritum.appointments (
     folio, status, origen, slot_start, slot_end, hold_expires_at,
     nombre, correo, telefono, area, modalidad, entidad, municipio,
     descripcion, fecha_proxima, canal,
@@ -227,15 +233,15 @@ $$;
 -- ---------------------------------------------------------------------------
 -- Horarios ocupados de un rango (para calcular disponibilidad)
 -- ---------------------------------------------------------------------------
-create or replace function horarios_ocupados(p_desde timestamptz, p_hasta timestamptz)
+create or replace function veritum.horarios_ocupados(p_desde timestamptz, p_hasta timestamptz)
 returns table (slot_start timestamptz)
 language sql
 stable
 security definer
-set search_path = public
+set search_path = veritum, public
 as $$
   select a.slot_start
-    from appointments a
+    from veritum.appointments a
    where a.slot_start >= p_desde
      and a.slot_start < p_hasta
      and (
@@ -247,34 +253,41 @@ $$;
 -- ---------------------------------------------------------------------------
 -- updated_at automático
 -- ---------------------------------------------------------------------------
-create or replace function set_updated_at() returns trigger
-language plpgsql as $$
+create or replace function veritum.set_updated_at() returns trigger
+language plpgsql
+set search_path = veritum, public
+as $$
 begin
   new.updated_at = now();
   return new;
 end;
 $$;
 
-drop trigger if exists appointments_updated_at on appointments;
+drop trigger if exists appointments_updated_at on veritum.appointments;
 create trigger appointments_updated_at
-  before update on appointments
-  for each row execute function set_updated_at();
+  before update on veritum.appointments
+  for each row execute function veritum.set_updated_at();
 
 -- ---------------------------------------------------------------------------
--- RLS: activado y sin políticas. Solo la service role key (servidor) accede.
+-- Permisos: la API solo necesita entrar al esquema; RLS bloquea el resto.
 -- ---------------------------------------------------------------------------
-alter table appointments enable row level security;
-alter table availability_rules enable row level security;
-alter table availability_blocks enable row level security;
-alter table page_events enable row level security;
-alter table stripe_events enable row level security;
+grant usage on schema veritum to anon, authenticated, service_role;
+grant all on all tables in schema veritum to service_role;
+grant all on all sequences in schema veritum to service_role;
+grant execute on all functions in schema veritum to service_role;
+
+alter table veritum.appointments enable row level security;
+alter table veritum.availability_rules enable row level security;
+alter table veritum.availability_blocks enable row level security;
+alter table veritum.page_events enable row level security;
+alter table veritum.stripe_events enable row level security;
 
 -- ---------------------------------------------------------------------------
 -- Disponibilidad inicial de ejemplo (lunes a viernes, 10:00–14:00 y 16:00–18:00
 -- hora de la Ciudad de México). Edítala desde el panel: /panel/disponibilidad
 -- ---------------------------------------------------------------------------
-insert into availability_rules (weekday, hora_inicio, hora_fin)
+insert into veritum.availability_rules (weekday, hora_inicio, hora_fin)
 select d, h.inicio, h.fin
   from generate_series(1, 5) as d,
        (values ('10:00'::time, '14:00'::time), ('16:00'::time, '18:00'::time)) as h(inicio, fin)
- where not exists (select 1 from availability_rules);
+ where not exists (select 1 from veritum.availability_rules);

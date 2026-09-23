@@ -1,22 +1,35 @@
 import "server-only";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
 // Cliente de Supabase para uso exclusivo en el servidor. Usa la service role
 // key, que ignora RLS: nunca debe importarse desde un componente de cliente
 // (el paquete "server-only" hace fallar la compilación si ocurre).
+//
+// Todo vive en el esquema `veritum`, no en `public`, para poder compartir el
+// proyecto de Supabase con otras aplicaciones. Ese esquema debe estar en
+// Settings → API → "Exposed schemas" o las consultas fallan con PGRST106.
 
-let client: SupabaseClient | null = null;
+// El tipo se infiere de createClient para que respete el esquema configurado.
+type Cliente = ReturnType<typeof crear>;
+let client: Cliente | null = null;
 
-export const supabaseReady = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-export const db = (): SupabaseClient => {
-  if (!supabaseReady) {
-    throw new Error("Supabase no está configurado: define SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY.");
-  }
-  client ??= createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+const crear = () =>
+  createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    db: { schema: SCHEMA },
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { "x-application-name": "veritum-web" } },
   });
+
+/** Esquema propio dentro del proyecto de Supabase. */
+export const SCHEMA = process.env.SUPABASE_SCHEMA?.trim() || "veritum";
+
+export const supabaseReady = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+export const db = (): Cliente => {
+  if (!supabaseReady) {
+    throw new Error("Supabase no está configurado: define SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY.");
+  }
+  client ??= crear();
   return client;
 };
 

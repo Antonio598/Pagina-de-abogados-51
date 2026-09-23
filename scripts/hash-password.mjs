@@ -10,9 +10,9 @@ if (!password) {
   console.error('Uso: node scripts/hash-password.mjs "tu contraseña"');
   process.exit(1);
 }
+// Se avisa, pero no se bloquea: la decisión es de VERITUM.
 if (password.length < 12) {
-  console.error("Usa al menos 12 caracteres.");
-  process.exit(1);
+  console.error("Aviso: contraseña de menos de 12 caracteres. Cámbiala antes de manejar datos reales de clientes.");
 }
 
 const salt = randomBytes(16);

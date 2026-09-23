@@ -28,8 +28,25 @@ const device = () => {
   return w < 640 ? "movil" : w < 1024 ? "tableta" : "escritorio";
 };
 
+const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"] as const;
+
+/**
+ * Guarda las UTM de la llegada y devuelve las vigentes. Se hace aquí y no solo
+ * en el sitio público porque el tráfico de anuncios entra por la landing: si no
+ * se capturan en la primera vista, la campaña se pierde para siempre.
+ */
 const utm = () => {
   try {
+    const params = new URLSearchParams(window.location.search);
+    const nuevas: Record<string, string> = {};
+    for (const k of UTM_KEYS) {
+      const v = params.get(k);
+      if (v) nuevas[k] = v.slice(0, 120);
+    }
+    if (Object.keys(nuevas).length > 0) {
+      window.sessionStorage.setItem(UTM_KEY, JSON.stringify(nuevas));
+      return nuevas;
+    }
     return JSON.parse(window.sessionStorage.getItem(UTM_KEY) ?? "{}") as Record<string, string>;
   } catch {
     return {};

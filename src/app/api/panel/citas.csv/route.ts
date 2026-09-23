@@ -1,7 +1,7 @@
 // Exportación de citas pagadas en CSV. Requiere sesión del panel.
 import { NextResponse, type NextRequest } from "next/server";
 import { formatDateTimeLong } from "@/lib/booking";
-import { db, supabaseReady, type Appointment } from "@/lib/db";
+import { db, dbReady, t, type Appointment } from "@/lib/db";
 import { getSession } from "@/lib/panel-auth";
 
 export const runtime = "nodejs";
@@ -14,17 +14,20 @@ const campo = (v: unknown) => {
 
 export async function GET(req: NextRequest) {
   if (!(await getSession())) return NextResponse.json({ ok: false }, { status: 401 });
-  if (!supabaseReady) return NextResponse.json({ ok: false }, { status: 503 });
+  if (!dbReady) return NextResponse.json({ ok: false }, { status: 503 });
 
   const filtro = req.nextUrl.searchParams.get("f") ?? "proximas";
-  const ahora = new Date().toISOString();
-  let query = db().from("appointments").select("*").eq("status", "pagada");
-  if (filtro === "proximas") query = query.gte("slot_start", ahora);
-  else if (filtro === "pasadas") query = query.lt("slot_start", ahora);
-
-  const { data, error } = await query.order("slot_start", { ascending: true }).limit(2000);
-  if (error) {
-    console.error("[panel/csv]", error);
+  const sql = db();
+  let citas: Appointment[] = [];
+  try {
+    citas =
+      filtro === "proximas"
+        ? await sql<Appointment[]>`select * from ${t("appointments")} where status = 'pagada' and slot_start >= now() order by slot_start limit 2000`
+        : filtro === "pasadas"
+          ? await sql<Appointment[]>`select * from ${t("appointments")} where status = 'pagada' and slot_start < now() order by slot_start limit 2000`
+          : await sql<Appointment[]>`select * from ${t("appointments")} where status = 'pagada' order by slot_start limit 2000`;
+  } catch (err) {
+    console.error("[panel/csv]", err);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 
@@ -34,10 +37,10 @@ export async function GET(req: NextRequest) {
     "importe_mxn", "promocion", "pago_stripe", "pagada_el",
   ];
 
-  const filas = ((data ?? []) as Appointment[]).map((c) =>
+  const filas = citas.map((c) =>
     [
       c.folio,
-      formatDateTimeLong(new Date(c.slot_start)),
+      formatDateTimeLong(c.slot_start),
       c.nombre,
       c.correo,
       c.telefono,
@@ -51,7 +54,7 @@ export async function GET(req: NextRequest) {
       (c.precio_centavos / 100).toFixed(2),
       c.promo_aplicada ? "sí" : "no",
       c.stripe_payment_intent,
-      c.paid_at ? formatDateTimeLong(new Date(c.paid_at)) : "",
+      c.paid_at ? formatDateTimeLong(c.paid_at) : "",
     ].map(campo).join(","),
   );
 

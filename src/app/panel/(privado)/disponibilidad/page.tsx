@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { CalendarClock } from "lucide-react";
 import { formatDateTimeLong, SLOT_MINUTES } from "@/lib/booking";
-import { db, supabaseReady, type AvailabilityBlock, type AvailabilityRule } from "@/lib/db";
+import { db, dbReady, t, type AvailabilityBlock, type AvailabilityRule } from "@/lib/db";
 import { getSession } from "@/lib/panel-auth";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/forms/Field";
@@ -20,7 +20,9 @@ async function agregarRegla(formData: FormData) {
   const fin = String(formData.get("hora_fin") ?? "");
   if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) return;
   if (!/^\d{2}:\d{2}$/.test(inicio) || !/^\d{2}:\d{2}$/.test(fin) || fin <= inicio) return;
-  await db().from("availability_rules").insert({ weekday, hora_inicio: inicio, hora_fin: fin });
+  await db()`
+    insert into ${t("availability_rules")} (weekday, hora_inicio, hora_fin)
+    values (${weekday}, ${inicio}::time, ${fin}::time)`;
   revalidatePath("/panel/disponibilidad");
 }
 
@@ -28,7 +30,7 @@ async function borrarRegla(formData: FormData) {
   "use server";
   if (!(await getSession())) throw new Error("Sesión no válida.");
   const id = String(formData.get("id") ?? "");
-  if (id) await db().from("availability_rules").delete().eq("id", id);
+  if (id) await db()`delete from ${t("availability_rules")} where id = ${id}::uuid`;
   revalidatePath("/panel/disponibilidad");
 }
 
@@ -39,7 +41,9 @@ async function agregarBloqueo(formData: FormData) {
   const fin = String(formData.get("fin") ?? "");
   const motivo = String(formData.get("motivo") ?? "").slice(0, 120);
   if (!inicio || !fin || new Date(fin) <= new Date(inicio)) return;
-  await db().from("availability_blocks").insert({ inicio: new Date(inicio).toISOString(), fin: new Date(fin).toISOString(), motivo: motivo || null });
+  await db()`
+    insert into ${t("availability_blocks")} (inicio, fin, motivo)
+    values (${new Date(inicio)}, ${new Date(fin)}, ${motivo || null})`;
   revalidatePath("/panel/disponibilidad");
 }
 
@@ -47,22 +51,24 @@ async function borrarBloqueo(formData: FormData) {
   "use server";
   if (!(await getSession())) throw new Error("Sesión no válida.");
   const id = String(formData.get("id") ?? "");
-  if (id) await db().from("availability_blocks").delete().eq("id", id);
+  if (id) await db()`delete from ${t("availability_blocks")} where id = ${id}::uuid`;
   revalidatePath("/panel/disponibilidad");
 }
 
 export default async function DisponibilidadPage() {
-  if (!supabaseReady) {
-    return <p className="rounded-brand border border-gris bg-blanco p-6 text-carbon/85">Falta configurar Supabase para gestionar los horarios.</p>;
+  if (!dbReady) {
+    return (
+      <p className="rounded-brand border border-gris bg-blanco p-6 text-carbon/85">
+        Falta configurar la base de datos (<code className="text-azul">DATABASE_URL</code>) para gestionar los horarios.
+      </p>
+    );
   }
 
-  const [reglasRes, bloqueosRes] = await Promise.all([
-    db().from("availability_rules").select("*").order("weekday").order("hora_inicio"),
-    db().from("availability_blocks").select("*").gte("fin", new Date().toISOString()).order("inicio"),
+  const sql = db();
+  const [reglas, bloqueos] = await Promise.all([
+    sql<AvailabilityRule[]>`select * from ${t("availability_rules")} order by weekday, hora_inicio`,
+    sql<AvailabilityBlock[]>`select * from ${t("availability_blocks")} where fin >= now() order by inicio`,
   ]);
-
-  const reglas = (reglasRes.data ?? []) as AvailabilityRule[];
-  const bloqueos = (bloqueosRes.data ?? []) as AvailabilityBlock[];
 
   return (
     <>
@@ -127,7 +133,7 @@ export default async function DisponibilidadPage() {
             {bloqueos.map((b) => (
               <li key={b.id} className="flex items-start justify-between gap-4 py-3">
                 <span className="text-[0.95rem] text-carbon/90">
-                  {formatDateTimeLong(new Date(b.inicio))} → {formatDateTimeLong(new Date(b.fin))}
+                  {formatDateTimeLong(b.inicio)} → {formatDateTimeLong(b.fin)}
                   {b.motivo && <span className="block text-sm text-carbon/70">{b.motivo}</span>}
                 </span>
                 <form action={borrarBloqueo}>

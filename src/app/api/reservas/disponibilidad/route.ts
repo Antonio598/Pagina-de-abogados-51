@@ -1,13 +1,13 @@
 // Horarios libres. Se consulta desde el formulario de reserva (landing y sitio).
 import { NextResponse, type NextRequest } from "next/server";
 import { getAvailability, HORIZON_DAYS, SLOT_MINUTES, TZ, todayISO } from "@/lib/booking";
-import { supabaseReady } from "@/lib/db";
+import { dbReady } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  if (!supabaseReady) {
+  if (!dbReady) {
     return NextResponse.json({ ok: false, error: "La agenda no está disponible en este momento." }, { status: 503 });
   }
 

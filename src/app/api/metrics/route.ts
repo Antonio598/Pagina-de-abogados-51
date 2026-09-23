@@ -4,7 +4,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { db, supabaseReady } from "@/lib/db";
+import { db, dbReady, t } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  if (!supabaseReady) return NextResponse.json({ ok: true, guardado: false });
+  if (!dbReady) return NextResponse.json({ ok: true, guardado: false });
 
   let body: unknown;
   try {
@@ -37,30 +37,23 @@ export async function POST(req: NextRequest) {
   const d = parsed.data;
 
   try {
+    const sql = db();
     if (d.tipo === "view") {
-      await db().from("page_events").insert({
-        session_id: d.sid,
-        path: d.path,
-        area: d.area,
-        device: d.device ?? null,
-        referrer_host: d.referrer_host ?? null,
-        utm_source: d.utm_source ?? null,
-        utm_medium: d.utm_medium ?? null,
-        utm_campaign: d.utm_campaign ?? null,
-      });
+      await sql`
+        insert into ${t("page_events")} (session_id, path, area, device, referrer_host, utm_source, utm_medium, utm_campaign)
+        values (${d.sid}, ${d.path}, ${d.area}, ${d.device ?? null}, ${d.referrer_host ?? null},
+                ${d.utm_source ?? null}, ${d.utm_medium ?? null}, ${d.utm_campaign ?? null})`;
     } else {
       // Guarda la mayor duración observada para esa sesión y ruta.
-      const { data } = await db()
-        .from("page_events")
-        .select("id, duracion_ms")
-        .eq("session_id", d.sid)
-        .eq("path", d.path)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (data && (data.duracion_ms ?? 0) < (d.duracion_ms ?? 0)) {
-        await db().from("page_events").update({ duracion_ms: d.duracion_ms }).eq("id", data.id);
-      }
+      await sql`
+        update ${t("page_events")} e
+           set duracion_ms = ${d.duracion_ms ?? 0}
+         where e.id = (
+           select id from ${t("page_events")}
+            where session_id = ${d.sid} and path = ${d.path}
+            order by created_at desc limit 1
+         )
+           and coalesce(e.duracion_ms, 0) < ${d.duracion_ms ?? 0}`;
     }
   } catch (err) {
     console.error("[metrics]", err);

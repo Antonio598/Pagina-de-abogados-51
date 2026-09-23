@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CalendarX2, Download } from "lucide-react";
 import { formatDateLong, formatTime, SLOT_MINUTES } from "@/lib/booking";
-import { db, supabaseReady, type Appointment } from "@/lib/db";
+import { db, dbReady, t, type Appointment } from "@/lib/db";
 import { formatMoney } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import { CitaDetalle } from "@/components/panel/CitaDetalle";
@@ -27,24 +27,35 @@ export default async function CitasPage({ searchParams }: PageProps<"/panel/cita
   const filtro = (typeof sp.f === "string" && filtros.some((f) => f.key === sp.f) ? sp.f : "proximas") as (typeof filtros)[number]["key"];
   const abierta = typeof sp.cita === "string" ? sp.cita : undefined;
 
-  if (!supabaseReady) {
+  if (!dbReady) {
     return (
       <p className="rounded-brand border border-gris bg-blanco p-6 text-carbon/85">
-        Falta configurar Supabase (<code className="text-azul">SUPABASE_URL</code> y{" "}
-        <code className="text-azul">SUPABASE_SERVICE_ROLE_KEY</code>) para ver las citas.
+        Falta configurar la base de datos (<code className="text-azul">DATABASE_URL</code>) para ver las citas.
       </p>
     );
   }
 
-  let query = db().from("appointments").select("*").eq("status", "pagada");
-  const ahora = new Date().toISOString();
-  if (filtro === "proximas") query = query.gte("slot_start", ahora).order("slot_start", { ascending: true });
-  else if (filtro === "pasadas") query = query.lt("slot_start", ahora).order("slot_start", { ascending: false });
-  else query = query.order("slot_start", { ascending: false });
-
-  const { data, error } = await query.limit(300);
-  if (error) console.error("[panel/citas]", error);
-  const citas = (data ?? []) as Appointment[];
+  const sql = db();
+  let citas: Appointment[] = [];
+  try {
+    citas =
+      filtro === "proximas"
+        ? await sql<Appointment[]>`
+            select * from ${t("appointments")}
+             where status = 'pagada' and slot_start >= now()
+             order by slot_start asc limit 300`
+        : filtro === "pasadas"
+          ? await sql<Appointment[]>`
+              select * from ${t("appointments")}
+               where status = 'pagada' and slot_start < now()
+               order by slot_start desc limit 300`
+          : await sql<Appointment[]>`
+              select * from ${t("appointments")}
+               where status = 'pagada'
+               order by slot_start desc limit 300`;
+  } catch (err) {
+    console.error("[panel/citas]", err);
+  }
   const detalle = citas.find((c) => c.id === abierta);
 
   const ingresos = citas.reduce((sum, c) => sum + c.precio_centavos, 0);
@@ -105,7 +116,7 @@ export default async function CitasPage({ searchParams }: PageProps<"/panel/cita
             </thead>
             <tbody>
               {citas.map((c) => {
-                const inicio = new Date(c.slot_start);
+                const inicio = c.slot_start;
                 return (
                   <tr key={c.id} className="block border-b border-gris last:border-0 hover:bg-marfil/60 sm:table-row">
                     <td className="block px-4 pt-4 sm:table-cell sm:py-3">

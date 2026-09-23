@@ -33,7 +33,7 @@ export const CitaDetalle = ({ cita, volverA }: { cita: Appointment; volverA: str
       </div>
 
       <dl className="px-6 pb-10">
-        <Fila label="Cuándo">{formatDateTimeLong(new Date(cita.slot_start))}</Fila>
+        <Fila label="Cuándo">{formatDateTimeLong(cita.slot_start)}</Fila>
         <Fila label="Estado">{cita.status === "pagada" ? "Pagada y confirmada" : cita.status}</Fila>
         <Fila label="Importe">
           {formatMoney(cita.precio_centavos, cita.moneda)}
@@ -61,7 +61,7 @@ export const CitaDetalle = ({ cita, volverA }: { cita: Appointment; volverA: str
         </Fila>
 
         <Fila label="Pago (Stripe)">{cita.stripe_payment_intent}</Fila>
-        <Fila label="Pagada el">{cita.paid_at ? formatDateTimeLong(new Date(cita.paid_at)) : null}</Fila>
+        <Fila label="Pagada el">{cita.paid_at ? formatDateTimeLong(cita.paid_at) : null}</Fila>
         <Fila label="Campaña">
           {Object.entries(cita.utm ?? {}).length > 0
             ? Object.entries(cita.utm)
@@ -70,7 +70,7 @@ export const CitaDetalle = ({ cita, volverA }: { cita: Appointment; volverA: str
             : null}
         </Fila>
         <Fila label="Consentimiento">
-          {cita.consentimiento_at ? `${formatDateTimeLong(new Date(cita.consentimiento_at))} · aviso ${cita.aviso_version ?? "—"}` : null}
+          {cita.consentimiento_at ? `${formatDateTimeLong(cita.consentimiento_at)} · aviso ${cita.aviso_version ?? "—"}` : null}
         </Fila>
       </dl>
     </aside>

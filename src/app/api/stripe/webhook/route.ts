@@ -10,7 +10,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type Stripe from "stripe";
 import { formatDateTimeLong, SLOT_MINUTES } from "@/lib/booking";
-import { db, supabaseReady, type Appointment } from "@/lib/db";
+import { db, dbReady, t, type Appointment } from "@/lib/db";
 import { filas, layout, sendMail } from "@/lib/mailer";
 import { formatMoney } from "@/lib/pricing";
 import { stripe, stripeReady } from "@/lib/stripe";
@@ -36,7 +36,7 @@ const correoCliente = (cita: Appointment) =>
     <table style="border-collapse:collapse;width:100%;margin-bottom:20px">
       ${filas({
         Folio: cita.folio,
-        Fecha: formatDateTimeLong(new Date(cita.slot_start)),
+        Fecha: formatDateTimeLong(cita.slot_start),
         Duración: `${SLOT_MINUTES} minutos`,
         Área: areaLabel[cita.area] ?? cita.area,
         Modalidad: cita.modalidad,
@@ -58,7 +58,7 @@ const correoInterno = (cita: Appointment) =>
       ${filas({
         Folio: cita.folio,
         Origen: cita.origen,
-        Fecha: formatDateTimeLong(new Date(cita.slot_start)),
+        Fecha: formatDateTimeLong(cita.slot_start),
         Área: areaLabel[cita.area] ?? cita.area,
         Modalidad: cita.modalidad,
         Nombre: cita.nombre,
@@ -82,28 +82,21 @@ const confirmar = async (session: Stripe.Checkout.Session) => {
     return;
   }
 
-  const { data, error } = await db()
-    .from("appointments")
-    .update({
-      status: "pagada",
-      paid_at: new Date().toISOString(),
-      hold_expires_at: null,
-      stripe_session_id: session.id,
-      stripe_payment_intent: typeof session.payment_intent === "string" ? session.payment_intent : (session.payment_intent?.id ?? null),
-      precio_centavos: session.amount_total ?? undefined,
-    })
-    .eq("id", appointmentId)
-    .neq("status", "pagada")
-    .select()
-    .maybeSingle();
+  const sql = db();
+  const intent = typeof session.payment_intent === "string" ? session.payment_intent : (session.payment_intent?.id ?? null);
 
-  if (error) {
-    console.error("[webhook] No se pudo marcar la cita como pagada", error);
-    throw error;
-  }
-  if (!data) return; // ya estaba pagada: nada que hacer
+  const [cita] = await sql<Appointment[]>`
+    update ${t("appointments")}
+       set status = 'pagada',
+           paid_at = now(),
+           hold_expires_at = null,
+           stripe_session_id = ${session.id},
+           stripe_payment_intent = ${intent},
+           precio_centavos = coalesce(${session.amount_total ?? null}::int, precio_centavos)
+     where id = ${appointmentId} and status <> 'pagada'
+     returning *`;
 
-  const cita = data as Appointment;
+  if (!cita) return; // ya estaba pagada: nada que hacer
   await Promise.all([
     sendMail({ to: cita.correo, subject: `Tu asesoría está confirmada · ${cita.folio}`, html: correoCliente(cita) }),
     sendMail({ subject: `[VERITUM] Cita pagada · ${cita.folio}`, html: correoInterno(cita), replyTo: cita.correo }),
@@ -114,12 +107,14 @@ const confirmar = async (session: Stripe.Checkout.Session) => {
 const liberar = async (session: Stripe.Checkout.Session) => {
   const appointmentId = session.metadata?.appointment_id;
   if (!appointmentId) return;
-  await db().from("appointments").update({ status: "expirada" }).eq("id", appointmentId).eq("status", "pendiente_pago");
+  await db()`
+    update ${t("appointments")} set status = 'expirada'
+     where id = ${appointmentId} and status = 'pendiente_pago'`;
 };
 
 export async function POST(req: NextRequest) {
-  if (!stripeReady() || !supabaseReady || !process.env.STRIPE_WEBHOOK_SECRET) {
-    console.error("[webhook] Falta STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET o Supabase.");
+  if (!stripeReady() || !dbReady || !process.env.STRIPE_WEBHOOK_SECRET) {
+    console.error("[webhook] Falta STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET o DATABASE_URL.");
     return NextResponse.json({ ok: false }, { status: 503 });
   }
 
@@ -136,10 +131,14 @@ export async function POST(req: NextRequest) {
   }
 
   // Idempotencia: si el id ya está registrado, Stripe está reintentando.
-  const { error: dup } = await db().from("stripe_events").insert({ id: event.id, tipo: event.type });
-  if (dup) {
-    if (dup.code === "23505") return NextResponse.json({ ok: true, repetido: true });
-    console.error("[webhook] No se pudo registrar el evento", dup);
+  try {
+    const filas = await db()`
+      insert into ${t("stripe_events")} (id, tipo) values (${event.id}, ${event.type})
+      on conflict (id) do nothing
+      returning id`;
+    if (filas.length === 0) return NextResponse.json({ ok: true, repetido: true });
+  } catch (err) {
+    console.error("[webhook] No se pudo registrar el evento", err);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 
@@ -163,7 +162,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("[webhook] Error al procesar", event.type, err);
     // Se borra el registro para que el reintento de Stripe pueda volver a entrar.
-    await db().from("stripe_events").delete().eq("id", event.id);
+    await db()`delete from ${t("stripe_events")} where id = ${event.id}`;
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 

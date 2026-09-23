@@ -1,5 +1,5 @@
 import "server-only";
-import { db, type AvailabilityBlock, type AvailabilityRule } from "./db";
+import { db, fn, t, type AvailabilityBlock, type AvailabilityRule } from "./db";
 
 // Motor de horarios. Todo se guarda en UTC; la zona de trabajo solo se usa
 // para interpretar las reglas ("lunes de 10:00 a 14:00") y para mostrar.
@@ -122,26 +122,23 @@ const slotsFromRules = (dateISO: string, rules: AvailabilityRule[]) => {
  * mínima), los bloqueados y los ya ocupados por citas pagadas o retenidas.
  */
 export const getAvailability = async (fromISO: string, days: number): Promise<DayAvailability[]> => {
-  const supabase = db();
+  const sql = db();
   const toISO = addDaysISO(fromISO, days);
   const from = parseISODate(fromISO);
   const to = parseISODate(toISO);
   const rangeStart = zonedToUtc(from.year, from.month, from.day, 0, 0);
   const rangeEnd = zonedToUtc(to.year, to.month, to.day, 23, 59);
 
-  const [rulesRes, blocksRes, busyRes] = await Promise.all([
-    supabase.from("availability_rules").select("*").eq("activo", true),
-    supabase.from("availability_blocks").select("*").lt("inicio", rangeEnd.toISOString()).gt("fin", rangeStart.toISOString()),
-    supabase.rpc("horarios_ocupados", { p_desde: rangeStart.toISOString(), p_hasta: rangeEnd.toISOString() }),
+  const [rules, blocks, ocupados] = await Promise.all([
+    sql<AvailabilityRule[]>`select * from ${t("availability_rules")} where activo`,
+    sql<AvailabilityBlock[]>`
+      select * from ${t("availability_blocks")}
+       where inicio < ${rangeEnd} and fin > ${rangeStart}`,
+    sql<{ slot_start: Date }[]>`
+      select slot_start from ${sql.unsafe(fn("horarios_ocupados"))}(${rangeStart}, ${rangeEnd})`,
   ]);
 
-  if (rulesRes.error) throw rulesRes.error;
-  if (blocksRes.error) throw blocksRes.error;
-  if (busyRes.error) throw busyRes.error;
-
-  const rules = (rulesRes.data ?? []) as AvailabilityRule[];
-  const blocks = (blocksRes.data ?? []) as AvailabilityBlock[];
-  const busy = new Set(((busyRes.data ?? []) as { slot_start: string }[]).map((r) => new Date(r.slot_start).getTime()));
+  const busy = new Set(ocupados.map((r) => r.slot_start.getTime()));
   const minStart = Date.now() + LEAD_MINUTES * 60_000;
 
   const result: DayAvailability[] = [];
@@ -150,7 +147,7 @@ export const getAvailability = async (fromISO: string, days: number): Promise<Da
     const slots = slotsFromRules(dateISO, rules)
       .filter((s) => s.start.getTime() >= minStart)
       .filter((s) => !busy.has(s.start.getTime()))
-      .filter((s) => !blocks.some((b) => new Date(b.inicio) < s.end && new Date(b.fin) > s.start))
+      .filter((s) => !blocks.some((b) => b.inicio < s.end && b.fin > s.start))
       .map((s) => ({ start: s.start.toISOString(), end: s.end.toISOString(), label: formatTime(s.start) }));
     result.push({ date: dateISO, slots });
   }

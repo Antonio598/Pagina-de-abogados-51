@@ -11,7 +11,7 @@
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { HOLD_MINUTES, SLOT_MINUTES, isSlotOffered, nuevoFolio } from "@/lib/booking";
-import { db, supabaseReady, type Appointment } from "@/lib/db";
+import { db, dbReady, fn, t, type Appointment } from "@/lib/db";
 import { cobroConfigurado, precioVigente, stripePriceId } from "@/lib/pricing";
 import { PROMO_COOKIE, promoStateFrom, readPromo } from "@/lib/promo";
 import { promoConfigurada } from "@/lib/pricing";
@@ -42,8 +42,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Demasiadas solicitudes. Inténtalo más tarde." }, { status: 429 });
   }
 
-  if (!supabaseReady || !stripeReady() || !cobroConfigurado) {
-    console.error("[reservas] Falta configuración: Supabase, Stripe o el precio de la asesoría.");
+  if (!dbReady || !stripeReady() || !cobroConfigurado) {
+    console.error("[reservas] Falta configuración: base de datos, Stripe o el precio de la asesoría.");
     return NextResponse.json(
       { ok: false, error: "La reserva en línea no está disponible en este momento. Escríbenos por los canales de contacto." },
       { status: 503 },
@@ -92,41 +92,32 @@ export async function POST(req: NextRequest) {
   const slotEnd = new Date(slotStart.getTime() + SLOT_MINUTES * 60_000);
   const folio = nuevoFolio();
 
-  const { data: reserva, error } = await db().rpc("reservar_slot", {
-    p_folio: folio,
-    p_origen: data.origen,
-    p_slot_start: slotStart.toISOString(),
-    p_slot_end: slotEnd.toISOString(),
-    p_hold_minutos: HOLD_MINUTES,
-    p_nombre: data.nombre,
-    p_correo: data.correo,
-    p_telefono: data.telefono,
-    p_area: data.asunto,
-    p_modalidad: data.modalidad || null,
-    p_entidad: data.entidad || null,
-    p_municipio: data.municipio || null,
-    p_descripcion: data.descripcion || null,
-    p_fecha_proxima: data.urgente || null,
-    p_canal: null,
-    p_precio_centavos: precio.centavos,
-    p_moneda: precio.moneda,
-    p_promo_aplicada: precio.conDescuento,
-    p_aviso_version: process.env.PRIVACY_NOTICE_VERSION ?? "pendiente",
-    p_utm: data.utm ?? {},
-  });
-
-  if (error) {
-    console.error("[reservas] Error al reservar", error);
+  // Reserva atómica: la función de Postgres expira los holds vencidos e inserta
+  // la cita solo si el horario sigue libre.
+  const sql = db();
+  let cita: Appointment;
+  try {
+    const [fila] = await sql<Appointment[]>`
+      select * from ${sql.unsafe(fn("reservar_slot"))}(
+        ${folio}, ${data.origen}, ${slotStart}, ${slotEnd}, ${HOLD_MINUTES},
+        ${data.nombre}, ${data.correo}, ${data.telefono}, ${data.asunto},
+        ${data.modalidad || null}, ${data.entidad || null}, ${data.municipio || null},
+        ${data.descripcion || null}, ${data.urgente || null}, ${null},
+        ${precio.centavos}, ${precio.moneda}, ${precio.conDescuento},
+        ${process.env.PRIVACY_NOTICE_VERSION ?? "pendiente"}, ${sql.json(data.utm ?? {})}
+      )`;
+    if (!fila?.id) {
+      return NextResponse.json(
+        { ok: false, error: "Ese horario acaba de ocuparse. Elige otro, por favor.", campo: "slot" },
+        { status: 409 },
+      );
+    }
+    cita = fila;
+  } catch (err) {
+    console.error("[reservas] Error al reservar", err);
     return NextResponse.json({ ok: false, error: "No pudimos apartar el horario. Inténtalo de nuevo." }, { status: 500 });
   }
-  if (!reserva) {
-    return NextResponse.json(
-      { ok: false, error: "Ese horario acaba de ocuparse. Elige otro, por favor.", campo: "slot" },
-      { status: 409 },
-    );
-  }
 
-  const cita = reserva as Appointment;
   const volverA = data.origen === "landing" ? "/consulta/agendar" : "/agenda";
 
   try {
@@ -156,7 +147,7 @@ export async function POST(req: NextRequest) {
         appointment_id: cita.id,
         folio: cita.folio,
         origen: cita.origen,
-        slot_start: cita.slot_start,
+        slot_start: cita.slot_start.toISOString(),
         promo: String(precio.conDescuento),
       },
       payment_intent_data: {
@@ -166,13 +157,13 @@ export async function POST(req: NextRequest) {
       cancel_url: `${siteUrl()}${volverA}?pago=cancelado&folio=${cita.folio}`,
     });
 
-    await db().from("appointments").update({ stripe_session_id: session.id }).eq("id", cita.id);
+    await sql`update ${t("appointments")} set stripe_session_id = ${session.id} where id = ${cita.id}`;
 
     return NextResponse.json({ ok: true, url: session.url, folio: cita.folio });
   } catch (err) {
     console.error("[reservas] Error al crear la sesión de pago", err);
     // Liberamos el horario: no tiene sentido retenerlo si no hay cobro.
-    await db().from("appointments").update({ status: "cancelada" }).eq("id", cita.id);
+    await sql`update ${t("appointments")} set status = 'cancelada' where id = ${cita.id}`;
     return NextResponse.json({ ok: false, error: "No pudimos iniciar el pago. Inténtalo de nuevo." }, { status: 502 });
   }
 }

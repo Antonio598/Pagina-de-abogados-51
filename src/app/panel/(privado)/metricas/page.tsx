@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { supabaseReady } from "@/lib/db";
+import { dbReady } from "@/lib/db";
 import { getMetricas } from "@/lib/metrics";
 import { cn } from "@/lib/utils";
 
@@ -34,12 +34,15 @@ const Barras = ({ datos }: { datos: { etiqueta: string; sitio: number; landing: 
       {datos.map((d) => {
         const total = d.sitio + d.landing;
         return (
-          <div key={d.etiqueta} className="flex flex-1 flex-col items-center justify-end gap-1">
-            <span className="flex w-full flex-col justify-end" style={{ height: `${(total / max) * 100}%` }}>
-              <span className="w-full bg-dorado" style={{ height: `${((d.landing / (total || 1)) * 100).toFixed(1)}%` }} title={`Landing: ${d.landing}`} />
-              <span className="w-full flex-1 bg-azul" title={`Sitio: ${d.sitio}`} />
+          <div key={d.etiqueta} className="flex h-full flex-1 flex-col items-center gap-1" title={`${d.etiqueta}: ${d.sitio} sitio · ${d.landing} landing`}>
+            {/* La zona de barras necesita altura definida para que los porcentajes se apliquen. */}
+            <span className="flex w-full flex-1 flex-col justify-end">
+              <span className="flex w-full flex-col justify-end rounded-t-[2px]" style={{ height: `${Math.max(total > 0 ? 2 : 0, (total / max) * 100)}%` }}>
+                <span className="w-full bg-dorado" style={{ height: `${((d.landing / (total || 1)) * 100).toFixed(1)}%` }} />
+                <span className="w-full flex-1 bg-azul" />
+              </span>
             </span>
-            <span className="text-[0.6rem] text-carbon/70">{d.etiqueta}</span>
+            <span className="text-[0.6rem] leading-none text-carbon/70">{d.etiqueta}</span>
           </div>
         );
       })}
@@ -51,8 +54,8 @@ export default async function MetricasPage({ searchParams }: PageProps<"/panel/m
   const sp = await searchParams;
   const dias = Number(typeof sp.d === "string" && rangos.some((r) => r.key === sp.d) ? sp.d : "30");
 
-  if (!supabaseReady) {
-    return <p className="rounded-brand border border-gris bg-blanco p-6 text-carbon/85">Falta configurar Supabase para ver las métricas.</p>;
+  if (!dbReady) {
+    return <p className="rounded-brand border border-gris bg-blanco p-6 text-carbon/85">Falta configurar la base de datos (DATABASE_URL) para ver las métricas.</p>;
   }
 
   const m = await getMetricas(dias);

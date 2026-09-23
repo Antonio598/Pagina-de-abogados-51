@@ -127,11 +127,14 @@ Navegación completa por teclado (menú móvil con trampa de foco y Esc), foco v
 
 ### 8.2 Puesta en marcha
 
-**1) Supabase**
-1. Abre el proyecto (puede ser uno que ya uses para otra app) y entra a *SQL Editor*.
-2. Pega [supabase/schema.sql](supabase/schema.sql) completo y ejecútalo. Crea el esquema **`veritum`**, separado de `public`, así que no toca nada de tus otras aplicaciones. Es idempotente: puedes volver a ejecutarlo.
-3. **Settings → API → "Exposed schemas"**: añade `veritum` a la lista. Sin este paso la aplicación no puede leer ni escribir (error `PGRST106`).
-4. Copia `SUPABASE_URL` y la **service role key** a las variables de entorno. Esa clave es secreta y solo se usa en el servidor; RLS queda activo y sin políticas públicas, así que la clave anónima no puede leer nada.
+**1) Base de datos**
+1. Abre tu PostgreSQL o Supabase (puede ser el mismo que ya uses para otra app) y entra al *SQL Editor* o conéctate con `psql`.
+2. Ejecuta [supabase/schema.sql](supabase/schema.sql) completo. Crea el esquema **`veritum`**, separado de `public`, así que no toca nada de tus otras aplicaciones. Es idempotente: puedes volver a ejecutarlo.
+3. Pon la cadena de conexión en `DATABASE_URL`.
+
+La aplicación se conecta **directo a Postgres**, no por la API REST de Supabase. Eso le da transacciones reales (necesarias para apartar un horario sin duplicados) y evita depender de la configuración de esquemas expuestos y del certificado del dominio.
+
+> **Cifrado.** Si la base de datos vive en el mismo servidor de EasyPanel, usa el **nombre interno del servicio** en `DATABASE_URL` (por ejemplo `proyecto_supabase-db:5432`): el tráfico no sale a internet. Si va por internet, usa `sslmode=require`; con `sslmode=disable` los nombres, teléfonos y descripciones de los casos viajan sin cifrar.
 
 **2) Stripe**
 1. Crea el producto "Asesoría legal inicial" con dos precios: normal y promocional.

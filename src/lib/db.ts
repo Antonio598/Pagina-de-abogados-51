@@ -1,37 +1,52 @@
 import "server-only";
-import { createClient } from "@supabase/supabase-js";
+import postgres from "postgres";
 
-// Cliente de Supabase para uso exclusivo en el servidor. Usa la service role
-// key, que ignora RLS: nunca debe importarse desde un componente de cliente
-// (el paquete "server-only" hace fallar la compilación si ocurre).
+// Conexión directa a PostgreSQL (Supabase autoalojado o gestionado).
 //
-// Todo vive en el esquema `veritum`, no en `public`, para poder compartir el
-// proyecto de Supabase con otras aplicaciones. Ese esquema debe estar en
-// Settings → API → "Exposed schemas" o las consultas fallan con PGRST106.
+// Se usa el driver de Postgres y no la API REST porque:
+//   · da transacciones reales, necesarias para apartar un horario sin duplicados;
+//   · no depende de que el esquema esté "expuesto" en la configuración de la API;
+//   · no depende del certificado del dominio de Supabase.
+//
+// Todo vive en el esquema `veritum`, aparte de `public`, para poder compartir la
+// misma base de datos con otras aplicaciones.
+//
+// Solo servidor: "server-only" hace fallar la compilación si alguien lo importa
+// desde un componente de cliente.
 
-// El tipo se infiere de createClient para que respete el esquema configurado.
-type Cliente = ReturnType<typeof crear>;
-let client: Cliente | null = null;
+export const SCHEMA = process.env.DB_SCHEMA?.trim() || "veritum";
+export const dbReady = Boolean(process.env.DATABASE_URL);
 
-const crear = () =>
-  createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-    db: { schema: SCHEMA },
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { "x-application-name": "veritum-web" } },
-  });
-
-/** Esquema propio dentro del proyecto de Supabase. */
-export const SCHEMA = process.env.SUPABASE_SCHEMA?.trim() || "veritum";
-
-export const supabaseReady = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-export const db = (): Cliente => {
-  if (!supabaseReady) {
-    throw new Error("Supabase no está configurado: define SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY.");
-  }
-  client ??= crear();
-  return client;
+/** TLS según el `sslmode` de la cadena de conexión. */
+const ssl = () => {
+  const modo = /sslmode=([a-z-]+)/i.exec(process.env.DATABASE_URL ?? "")?.[1]?.toLowerCase();
+  if (modo === "disable") return false as const;
+  if (modo === "no-verify" || process.env.DATABASE_SSL_INSECURE === "true") return { rejectUnauthorized: false };
+  return "require" as const;
 };
+
+let cliente: postgres.Sql | null = null;
+
+export const db = () => {
+  if (!dbReady) throw new Error("Falta DATABASE_URL: la base de datos no está configurada.");
+  cliente ??= postgres(process.env.DATABASE_URL!, {
+    max: Number(process.env.DB_POOL_MAX ?? 5),
+    idle_timeout: 20,
+    connect_timeout: 15,
+    // Los agrupadores de conexiones (Supavisor, PgBouncer) no admiten sentencias preparadas.
+    prepare: false,
+    ssl: ssl(),
+    onnotice: () => {},
+    connection: { application_name: "veritum-web" },
+  });
+  return cliente;
+};
+
+/** Identificador de tabla dentro del esquema del proyecto: t("appointments"). */
+export const t = (tabla: string) => db()(`${SCHEMA}.${tabla}`);
+
+/** Nombre calificado de una función del esquema. */
+export const fn = (nombre: string) => `${SCHEMA}.${nombre}`;
 
 // ---------------------------------------------------------------------------
 // Tipos de las tablas (espejo de supabase/schema.sql)
@@ -45,9 +60,9 @@ export type Appointment = {
   folio: string;
   status: AppointmentStatus;
   origen: AppointmentOrigin;
-  slot_start: string;
-  slot_end: string;
-  hold_expires_at: string | null;
+  slot_start: Date;
+  slot_end: Date;
+  hold_expires_at: Date | null;
   nombre: string;
   correo: string;
   telefono: string;
@@ -63,13 +78,13 @@ export type Appointment = {
   promo_aplicada: boolean;
   stripe_session_id: string | null;
   stripe_payment_intent: string | null;
-  paid_at: string | null;
+  paid_at: Date | null;
   aviso_version: string | null;
-  consentimiento_at: string | null;
+  consentimiento_at: Date | null;
   utm: Record<string, string>;
   notas: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: Date;
+  updated_at: Date;
 };
 
 export type AvailabilityRule = {
@@ -78,15 +93,15 @@ export type AvailabilityRule = {
   hora_inicio: string;
   hora_fin: string;
   activo: boolean;
-  created_at: string;
+  created_at: Date;
 };
 
 export type AvailabilityBlock = {
   id: string;
-  inicio: string;
-  fin: string;
+  inicio: Date;
+  fin: Date;
   motivo: string | null;
-  created_at: string;
+  created_at: Date;
 };
 
 export type PageEvent = {
@@ -100,5 +115,5 @@ export type PageEvent = {
   utm_medium: string | null;
   utm_campaign: string | null;
   duracion_ms: number | null;
-  created_at: string;
+  created_at: Date;
 };

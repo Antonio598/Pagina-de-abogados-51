@@ -4,7 +4,7 @@ export const process = {
   title: "Un proceso claro desde el primer contacto",
   steps: [
     { title: "Contacto inicial", text: "Completa el formulario o utiliza el canal autorizado. Comparte solo la información indispensable." },
-    { title: "Agenda y confirmación", text: "Selecciona modalidad y horario disponibles. Recibirás las condiciones de la asesoría." },
+    { title: "Agenda y confirmación", text: "Selecciona el horario disponible. Recibirás las condiciones de la asesoría y el enlace de la videollamada." },
     { title: "Asesoría inicial", text: "Revisamos antecedentes, objetivos y documentos relevantes." },
     { title: "Diagnóstico preliminar", text: "Explicamos alternativas, riesgos y posibles siguientes pasos." },
     { title: "Propuesta de servicio", text: "Si el asunto requiere trabajo adicional, se presenta el alcance, honorarios y condiciones." },

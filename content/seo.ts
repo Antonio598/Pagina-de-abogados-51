@@ -5,9 +5,9 @@ export type PageSeo = { title: string; description: string };
 
 export const seo: Record<string, PageSeo> = {
   home: {
-    title: "VERITUM │ Asesoría legal clara en CDMX y Estado de México",
+    title: "VERITUM │ Asesoría legal en línea en todo México",
     description:
-      "Estrategia legal clara y acompañamiento humano para personas, trabajadores y empresas. Conoce servicios y agenda una asesoría.",
+      "Asesoría legal por videollamada para personas, trabajadores y empresas de todo México. Estrategia clara y acompañamiento humano. Agenda tu sesión.",
   },
   servicios: {
     title: "Servicios legales │ VERITUM",
@@ -27,7 +27,7 @@ export const seo: Record<string, PageSeo> = {
   contacto: {
     title: "Contacto y asesoría │ VERITUM",
     description:
-      "Contacta a VERITUM y comparte brevemente tu situación para conocer el siguiente paso.",
+      "Contacta a VERITUM y comparte brevemente tu situación para conocer el siguiente paso. Asesoría en línea en todo México.",
   },
   proceso: {
     title: "Proceso │ VERITUM",
@@ -39,7 +39,7 @@ export const seo: Record<string, PageSeo> = {
   },
   agenda: {
     title: "Agenda asesoría │ VERITUM",
-    description: "Agenda una asesoría inicial con VERITUM para revisar tu situación y conocer el siguiente paso.",
+    description: "Agenda tu asesoría legal en línea con VERITUM: elige horario, paga y recibe el enlace de la videollamada.",
   },
   privacidad: { title: "Aviso de privacidad │ VERITUM", description: "Aviso de privacidad de VERITUM." },
   terminos: { title: "Términos de uso │ VERITUM", description: "Términos de uso del sitio de VERITUM." },

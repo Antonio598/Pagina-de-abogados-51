@@ -9,8 +9,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, CalendarDays, Check, Clock, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CalendarDays, Check, Clock, Loader2, ShieldCheck, Video } from "lucide-react";
 import { asuntoOptions, contactForm as cf } from "@content/contact";
+import { site } from "@content/site";
 import { reservaSchema, type ReservaInput } from "@/lib/validation";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
@@ -225,8 +226,12 @@ export const BookingForm = ({ origen, precio, defaultAsunto, duracionMinutos, cl
             </div>
 
             <div className="mt-6">
-              <p className="mb-3 flex items-center gap-2 text-sm font-medium text-azul">
+              <p className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium text-azul">
                 <Clock className="size-4 text-dorado-2" aria-hidden /> Hora · sesión de {duracionMinutos} minutos
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-marfil px-2.5 py-1 text-xs font-normal text-carbon/80">
+                  <Video className="size-3.5 text-dorado-2" aria-hidden />
+                  {site.modalidad}
+                </span>
               </p>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {diaSel?.slots.map((s) => {

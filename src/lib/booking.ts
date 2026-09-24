@@ -171,3 +171,15 @@ export const nuevoFolio = () => {
   for (let i = 0; i < 6; i++) s += abc[Math.floor(Math.random() * abc.length)];
   return `VER-${s}`;
 };
+
+/**
+ * Huecos realmente libres en los próximos días. Alimenta el aviso de escasez de
+ * la landing: es un dato verificable, no un adorno. Si la agenda está llena
+ * devuelve 0 y la interfaz invita a dejar los datos en vez de inventar cupo.
+ */
+export const getCupoSemana = async (dias = 7): Promise<{ libres: number; proximo: string | null }> => {
+  const agenda = await getAvailability(todayISO(), dias);
+  const libres = agenda.reduce((n, d) => n + d.slots.length, 0);
+  const proximo = agenda.find((d) => d.slots.length > 0)?.slots[0]?.start ?? null;
+  return { libres, proximo };
+};

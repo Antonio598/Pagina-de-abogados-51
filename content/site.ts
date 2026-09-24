@@ -4,7 +4,9 @@ export const site = {
   name: "VERITUM",
   descriptor: "Capital Humano & Legal",
   tagline: "Estrategia legal con claridad y acompañamiento humano.",
-  coverage: "Ciudad de México y Estado de México",
+  coverage: "Todo México · asesoría por videollamada",
+  /** Formato único del servicio: ya no hay sesiones presenciales. */
+  modalidad: "En línea (videollamada)",
   legalNotice:
     "La información de este sitio es general y no constituye asesoría legal. Cada asunto requiere valoración individual.",
   pillars: ["Claridad", "Estrategia", "Acompañamiento", "Prevención", "Protección"],

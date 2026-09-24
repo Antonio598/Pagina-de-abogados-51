@@ -17,6 +17,10 @@ import { PROMO_COOKIE, promoStateFrom, readPromo } from "@/lib/promo";
 import { promoConfigurada } from "@/lib/pricing";
 import { stripe, stripeReady } from "@/lib/stripe";
 import { reservaSchema } from "@/lib/validation";
+import { site } from "@content/site";
+
+/** Todas las asesorías son por videollamada: no se acepta otra modalidad del cliente. */
+const MODALIDAD = site.modalidad;
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -101,7 +105,7 @@ export async function POST(req: NextRequest) {
       select * from ${sql.unsafe(fn("reservar_slot"))}(
         ${folio}, ${data.origen}, ${slotStart}, ${slotEnd}, ${HOLD_MINUTES},
         ${data.nombre}, ${data.correo}, ${data.telefono}, ${data.asunto},
-        ${data.modalidad || null}, ${data.entidad || null}, ${data.municipio || null},
+        ${MODALIDAD}, ${data.entidad || null}, ${data.municipio || null},
         ${data.descripcion || null}, ${data.urgente || null}, ${null},
         ${precio.centavos}, ${precio.moneda}, ${precio.conDescuento},
         ${process.env.PRIVACY_NOTICE_VERSION ?? "pendiente"}, ${sql.json(data.utm ?? {})}

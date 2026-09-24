@@ -395,3 +395,213 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     transform: translateY(0);
   }
 }
+
+/* ==========================================================================
+   Movimiento avanzado — landing de campaña y detalles del sitio.
+   Todo en CSS: nada de librerías, nada que bloquee el primer pintado.
+   `prefers-reduced-motion` lo desactiva al final de este archivo.
+   ========================================================================== */
+
+/* Revelado del titular palabra por palabra ---------------------------------- */
+@keyframes palabra-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.3em);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.palabra {
+  display: inline-block;
+  animation: palabra-in 620ms var(--ease-brand) both;
+  animation-delay: calc(var(--i, 0) * 65ms + var(--d, 0ms));
+}
+
+/* Brillo que sigue al dedo o al cursor -------------------------------------- */
+@utility spotlight {
+  position: relative;
+  isolation: isolate;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+      16rem circle at var(--mx, 50%) var(--my, 0%),
+      rgb(202 158 50 / 0.16),
+      transparent 60%
+    );
+    opacity: 0;
+    transition: opacity 300ms var(--ease-brand);
+    pointer-events: none;
+    z-index: -1;
+  }
+  &[data-activo]::before {
+    opacity: 1;
+  }
+}
+
+/* Destello que recorre el botón principal ----------------------------------- */
+@keyframes destello {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(320%) skewX(-18deg);
+  }
+}
+@utility cta-destello {
+  position: relative;
+  overflow: hidden;
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 38%;
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.22), transparent);
+    animation: destello 2.6s ease-in-out 1.2s 4;
+    pointer-events: none;
+  }
+}
+
+/* Latido discreto para el aviso de cupo ------------------------------------- */
+@keyframes latido {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  70%,
+  100% {
+    transform: scale(1.04);
+    opacity: 0;
+  }
+}
+@utility pulso-dorado {
+  position: relative;
+  isolation: isolate;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    border: 1px solid var(--color-dorado);
+    animation: latido 2.6s ease-out infinite;
+    pointer-events: none;
+    z-index: -1;
+  }
+}
+
+/* Trazo de íconos que se dibuja --------------------------------------------- */
+@keyframes trazar {
+  from {
+    stroke-dashoffset: var(--largo, 120);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+[data-trazo] svg path,
+[data-trazo] svg circle,
+[data-trazo] svg line,
+[data-trazo] svg polyline,
+[data-trazo] svg rect {
+  stroke-dasharray: var(--largo, 120);
+  stroke-dashoffset: var(--largo, 120);
+}
+[data-trazo][data-inview] svg path,
+[data-trazo][data-inview] svg circle,
+[data-trazo][data-inview] svg line,
+[data-trazo][data-inview] svg polyline,
+[data-trazo][data-inview] svg rect {
+  animation: trazar 900ms var(--ease-brand) forwards;
+}
+
+/* Degradado lento del hero de la landing ------------------------------------ */
+@keyframes aurora {
+  0%,
+  100% {
+    transform: translate3d(-2%, -1%, 0);
+  }
+  50% {
+    transform: translate3d(3%, 2%, 0);
+  }
+}
+@utility aurora-veritum {
+  /* Superficie acotada: el degradado se pinta una vez y solo se compone. */
+  background:
+    radial-gradient(28rem 18rem at 20% 12%, rgb(26 55 122 / 0.13), transparent 62%),
+    radial-gradient(22rem 15rem at 84% 26%, rgb(202 158 50 / 0.15), transparent 60%);
+  animation: aurora 22s ease-in-out infinite;
+  will-change: transform;
+  contain: strict;
+}
+
+/* Cinta con las áreas de práctica ------------------------------------------- */
+@keyframes cinta {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@utility cinta-anim {
+  animation: cinta 34s linear infinite;
+  will-change: transform;
+}
+
+/* Tarjeta con inclinación mínima al puntero (sitio institucional) ------------ */
+@utility tilt {
+  transform: perspective(900px) rotateX(var(--ry, 0deg)) rotateY(var(--rx, 0deg)) translateZ(0);
+  transition: transform 260ms var(--ease-brand);
+}
+
+/* Barra de avance de lectura ------------------------------------------------ */
+@utility barra-lectura {
+  transform-origin: left;
+  transform: scaleX(var(--avance, 0));
+  transition: transform 90ms linear;
+}
+
+/* Transiciones entre páginas del sitio (navegadores que las soportan) -------- */
+@view-transition {
+  navigation: auto;
+}
+::view-transition-old(root) {
+  animation: fade-in 180ms var(--ease-brand) reverse;
+}
+::view-transition-new(root) {
+  animation: rise-in 320ms var(--ease-brand);
+}
+
+/* Respeto total a quien pide menos movimiento ------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .palabra,
+  [data-trazo][data-inview] svg *,
+  .aurora-veritum,
+  .cinta-anim {
+    animation: none !important;
+  }
+  .palabra {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+  [data-trazo] svg * {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
+  .cta-destello::after,
+  .pulso-dorado {
+    animation: none !important;
+  }
+  .tilt {
+    transform: none !important;
+  }
+  @view-transition {
+    navigation: none;
+  }
+}

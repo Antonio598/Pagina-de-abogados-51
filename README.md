@@ -162,9 +162,19 @@ Define además `PANEL_USER`. La sesión dura 8 horas y se bloquea el acceso 15 m
 **5) Horarios**
 Entra a `/panel/disponibilidad` y define las franjas por día de la semana. El esquema trae lunes a viernes de 10:00 a 14:00 y de 16:00 a 18:00 como ejemplo. Cada franja se divide en sesiones de `BOOKING_SLOT_MINUTES` (45 por omisión).
 
+### 8.2 bis Servicio 100 % en línea
+
+Todas las asesorías son por **videollamada**, en **todo México**. No hay modalidad presencial: el formulario ya no la pregunta y el servidor la fija (`site.modalidad`). El correo de confirmación incluye el enlace de la sesión.
+
 ### 8.3 El descuento por tiempo limitado
 
-Es un descuento **real**, no un adorno: el reloj empieza en la primera visita a `/consulta`, se guarda firmado en una cookie httpOnly y, al expirar, Stripe cobra el precio normal. El precio se decide siempre en el servidor ([src/app/api/reservas/route.ts](src/app/api/reservas/route.ts)), así que modificarlo desde el navegador no tiene efecto. Para apagarlo por completo, deja vacío `NEXT_PUBLIC_PRECIO_PROMO`.
+Es un descuento **real**, no un adorno: el reloj (10 minutos, `NEXT_PUBLIC_PROMO_MINUTOS`) empieza en la primera visita a `/consulta`, se guarda firmado en una cookie httpOnly y, al expirar, Stripe cobra el precio normal. El precio se decide siempre en el servidor ([src/app/api/reservas/route.ts](src/app/api/reservas/route.ts)), así que modificarlo desde el navegador no tiene efecto. Para apagarlo por completo, deja vacío `NEXT_PUBLIC_PRECIO_PROMO`.
+
+### 8.3 bis Escasez real y ventana de salida
+
+El aviso "Quedan N horarios esta semana" sale de `getCupoSemana()` en [src/lib/booking.ts](src/lib/booking.ts): cuenta los huecos libres reales de los próximos 7 días. Si la agenda se llena, el bloque desaparece en lugar de inventar cupo.
+
+La ventana al intentar salir ([ExitIntent.tsx](src/components/landing/ExitIntent.tsx)) aparece **una sola vez por sesión**, solo en `/consulta`, nunca en el formulario ni tras pagar, y se cierra con Esc, con clic fuera o con su botón.
 
 ### 8.4 Métricas del panel
 

@@ -17,9 +17,12 @@ export const env = {
   correo: clean(process.env.NEXT_PUBLIC_CORREO),
   domicilio: clean(process.env.NEXT_PUBLIC_DOMICILIO),
   horario: clean(process.env.NEXT_PUBLIC_HORARIO),
-  modalidad: clean(process.env.NEXT_PUBLIC_MODALIDAD),
+  /** Todas las asesorías son por videollamada: no hay sesiones presenciales. */
+  modalidad: clean(process.env.NEXT_PUBLIC_MODALIDAD) ?? "En línea (videollamada)",
   /** Respuesta a "¿Atienden en línea?" {{modalidades}} */
-  modalidades: clean(process.env.NEXT_PUBLIC_MODALIDADES),
+  modalidades:
+    clean(process.env.NEXT_PUBLIC_MODALIDADES) ??
+    "Sí. Todas las asesorías son en línea, por videollamada, desde cualquier parte de México. Recibes el enlace junto con la confirmación.",
   redes: {
     linkedin: clean(process.env.NEXT_PUBLIC_REDES_LINKEDIN),
     facebook: clean(process.env.NEXT_PUBLIC_REDES_FACEBOOK),
@@ -34,11 +37,6 @@ export const env = {
   duracionAsesoria: clean(process.env.NEXT_PUBLIC_DURACION_ASESORIA),
   /** {{proveedor_agenda}} — URL del proveedor autorizado (Calendly, Cal.com, etc.). */
   agendaUrl: clean(process.env.NEXT_PUBLIC_AGENDA_URL),
-  /** Opciones de modalidad para la reserva, separadas por coma. */
-  modalidadesAgenda: (clean(process.env.NEXT_PUBLIC_MODALIDADES_AGENDA) ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean),
 
   // Landing de campaña (/consulta)
   /** URL del agente de IA (WhatsApp, Messenger o web). Vacío = el botón no aparece. */

@@ -10,7 +10,7 @@
 
 export const PROMO_COOKIE = "veritum_promo";
 
-export const promoMinutes = Number(process.env.NEXT_PUBLIC_PROMO_MINUTOS ?? 5);
+export const promoMinutes = Number(process.env.NEXT_PUBLIC_PROMO_MINUTOS ?? 10);
 
 const enc = new TextEncoder();
 

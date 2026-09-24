@@ -16,6 +16,7 @@ export type AnalyticsEvent =
   | "guia_descargada"
   | "scroll_relevante"
   | "landing_video_play"
+  | "salida_mostrada"
   | "agente_ia_click";
 
 export type EventPayload = {

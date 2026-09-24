@@ -1,6 +1,7 @@
 import { home } from "@content/home";
 import { site } from "@content/site";
 import { ButtonLink } from "@/components/ui/Button";
+import { WordReveal } from "@/components/landing/Efectos";
 import { TrackedLink } from "@/components/ui/TrackedLink";
 import { pad2 } from "@/lib/utils";
 
@@ -11,6 +12,8 @@ export const Hero = () => (
   <section className="relative overflow-hidden bg-marfil">
     {/* Retícula editorial muy sutil: no retrasa el contenido ni tapa nada. */}
     <div aria-hidden className="pointer-events-none absolute inset-0 bg-grid-marfil [mask-image:radial-gradient(70%_60%_at_70%_20%,black,transparent)]" />
+    {/* Degradado lento y tenue: da vida sin distraer de la lectura. */}
+    <div aria-hidden className="aurora-veritum pointer-events-none absolute inset-0 opacity-50" />
 
     <div className="container-editorial relative grid gap-12 pb-16 pt-12 md:pt-20 lg:grid-cols-12 lg:items-center lg:gap-10 lg:pb-28 lg:pt-24">
       <div className="lg:col-span-7">
@@ -18,9 +21,7 @@ export const Hero = () => (
           <span className="h-px w-8 bg-dorado" aria-hidden />
           {site.coverage}
         </p>
-        <h1 className="font-display type-h1 anim-rise-lcp mt-6 max-w-[16ch] text-balance text-azul" style={d(80)}>
-          {home.hero.title}
-        </h1>
+        <WordReveal texto={home.hero.title} delay={80} className="font-display type-h1 mt-6 block max-w-[16ch] text-balance text-azul" />
         <p className="measure anim-rise-lcp mt-6 text-pretty text-[1.05rem] text-carbon/85 md:mt-7 md:text-[1.15rem]" style={d(160)}>
           {home.hero.text}
         </p>

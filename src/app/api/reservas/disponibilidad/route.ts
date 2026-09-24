@@ -17,8 +17,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const dias_ = await getAvailability(fromISO, dias);
+    const libres = dias_.reduce((n, d) => n + d.slots.length, 0);
     return NextResponse.json(
-      { ok: true, zona: TZ, duracionMinutos: SLOT_MINUTES, dias: dias_ },
+      { ok: true, zona: TZ, duracionMinutos: SLOT_MINUTES, libres, dias: dias_ },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (err) {

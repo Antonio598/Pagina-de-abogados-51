@@ -13,6 +13,7 @@ export const contact = {
     domicilio: "Domicilio o zona de atención",
     horario: "Horario",
     modalidad: "Modalidad",
+    modalidadValor: "En línea (videollamada)",
     redes: "Redes sociales oficiales",
   },
 } as const;
@@ -81,7 +82,7 @@ export const agenda = {
   steps: ["Aviso", "Datos de la reserva", "Confirmación"],
   detailsTitle: "Datos de la reserva",
   fields: {
-    modalidad: "Modalidad disponible",
+    modalidad: "Modalidad",
     fecha: "Fecha preferida",
     hora: "Hora preferida",
     urgente: "Fecha próxima (audiencia, vencimiento o notificación)",

@@ -7,12 +7,14 @@ import { servicesLabels } from "@content/services";
 import { cn, pad2 } from "@/lib/utils";
 import { track } from "@/lib/analytics";
 import { ServiceIcon } from "./ServiceIcon";
+import { SpotlightCard } from "@/components/landing/Efectos";
 
 type Props = { service: Service; index: number; className?: string; large?: boolean };
 
 /** Tarjeta de servicio: fondo blanco, borde gris cálido, ícono outline, título,
  *  frase corta y un solo enlace "Conocer servicio". Toda la tarjeta es clicable. */
 export const ServiceCard = ({ service, index, className, large }: Props) => (
+  <SpotlightCard className="h-full rounded-brand">
   <Link
     href={`/servicios/${service.slug}`}
     onClick={() => track("servicio_visto", { section: "card", service: service.slug, result: "iniciado" })}
@@ -39,4 +41,5 @@ export const ServiceCard = ({ service, index, className, large }: Props) => (
     </span>
     <span className="absolute inset-x-7 bottom-0 h-px scale-x-0 bg-dorado transition-transform duration-300 ease-brand group-hover:scale-x-100" style={{ transformOrigin: "left" }} aria-hidden />
   </Link>
+  </SpotlightCard>
 );

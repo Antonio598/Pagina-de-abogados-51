@@ -26,7 +26,7 @@ export default async function ConsultaLayout({ children }: LayoutProps<"/consult
         </div>
       </header>
 
-      <main id="contenido" className="flex-1">
+      <main id="contenido" className="relative flex-1">
         {children}
       </main>
 

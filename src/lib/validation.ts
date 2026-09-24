@@ -43,7 +43,6 @@ export const reservaSchema = z.object({
   correo: z.string().trim().email(e.correo).max(160, e.correo),
   telefono: phone,
   asunto: z.enum(asuntoValues, { message: e.asunto }),
-  modalidad: z.string().trim().max(60).optional().or(z.literal("")),
   entidad: z.string().trim().max(80).optional().or(z.literal("")),
   municipio: z.string().trim().max(80).optional().or(z.literal("")),
   descripcion: z.string().trim().max(contactForm.maxChars, e.descripcionMax).optional().or(z.literal("")),

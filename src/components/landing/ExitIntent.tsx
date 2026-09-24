@@ -168,7 +168,7 @@ export const ExitIntent = ({
 
         <TrackedLink
           href="/consulta/agendar"
-          className="cta-destello mt-6 w-full"
+          className="cta-vivo mt-6 w-full"
           size="lg"
           arrow
           event="cta_agenda"

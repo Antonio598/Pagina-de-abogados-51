@@ -18,6 +18,21 @@ export const cobroConfigurado = PRECIO_NORMAL !== undefined;
 export const promoConfigurada =
   PRECIO_NORMAL !== undefined && PRECIO_PROMO !== undefined && PRECIO_PROMO < PRECIO_NORMAL;
 
+// Aviso en los registros del servidor: sin estas variables la landing sale sin
+// precio, sin contador y sin posibilidad de reservar. Es el olvido más fácil de
+// cometer al desplegar, así que se anuncia en voz alta al arrancar.
+if (typeof window === "undefined") {
+  if (PRECIO_NORMAL === undefined) {
+    console.warn(
+      "[VERITUM] Falta NEXT_PUBLIC_PRECIO_NORMAL (en centavos). Sin ella la landing no muestra precio ni permite reservar.",
+    );
+  } else if (!promoConfigurada) {
+    console.warn(
+      "[VERITUM] Falta NEXT_PUBLIC_PRECIO_PROMO (menor que el normal). Sin ella no aparece el contador de tiempo limitado.",
+    );
+  }
+}
+
 export const formatMoney = (centavos: number, moneda = MONEDA) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: moneda, minimumFractionDigits: 0 }).format(centavos / 100);
 

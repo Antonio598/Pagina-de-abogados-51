@@ -14,7 +14,7 @@ type Props = { service: Service; index: number; className?: string; large?: bool
 /** Tarjeta de servicio: fondo blanco, borde gris cálido, ícono outline, título,
  *  frase corta y un solo enlace "Conocer servicio". Toda la tarjeta es clicable. */
 export const ServiceCard = ({ service, index, className, large }: Props) => (
-  <SpotlightCard className="h-full rounded-brand">
+  <SpotlightCard className="borde-vivo h-full rounded-brand">
   <Link
     href={`/servicios/${service.slug}`}
     onClick={() => track("servicio_visto", { section: "card", service: service.slug, result: "iniciado" })}

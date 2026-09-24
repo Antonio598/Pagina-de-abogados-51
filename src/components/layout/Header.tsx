@@ -165,7 +165,7 @@ export const Header = () => {
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-3">
             {/* "Agenda asesoría" siempre visible, también en móvil (mín. 40 px de alto). */}
-            <ButtonLink href={agendaCta.href} size="sm" onClick={onAgendaClick} className="h-10 whitespace-nowrap px-3 py-0 text-[0.85rem] sm:px-5 sm:text-[0.9375rem]">
+            <ButtonLink href={agendaCta.href} size="sm" onClick={onAgendaClick} className="cta-destello h-10 whitespace-nowrap px-3 py-0 text-[0.85rem] sm:px-5 sm:text-[0.9375rem]">
               {agendaCta.label}
             </ButtonLink>
             <button

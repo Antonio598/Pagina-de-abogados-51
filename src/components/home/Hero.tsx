@@ -13,7 +13,10 @@ export const Hero = () => (
     {/* Retícula editorial muy sutil: no retrasa el contenido ni tapa nada. */}
     <div aria-hidden className="pointer-events-none absolute inset-0 bg-grid-marfil [mask-image:radial-gradient(70%_60%_at_70%_20%,black,transparent)]" />
     {/* Degradado lento y tenue: da vida sin distraer de la lectura. */}
-    <div aria-hidden className="aurora-veritum pointer-events-none absolute inset-0 opacity-50" />
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <span className="orbe orbe-azul left-[-12%] top-[-18%] size-[26rem] opacity-40" />
+      <span className="orbe orbe-dorado right-[-8%] top-[8%] size-[20rem] opacity-40" />
+    </div>
 
     <div className="container-editorial relative grid gap-12 pb-16 pt-12 md:pt-20 lg:grid-cols-12 lg:items-center lg:gap-10 lg:pb-28 lg:pt-24">
       <div className="lg:col-span-7">
@@ -21,12 +24,12 @@ export const Hero = () => (
           <span className="h-px w-8 bg-dorado" aria-hidden />
           {site.coverage}
         </p>
-        <WordReveal texto={home.hero.title} delay={80} className="font-display type-h1 mt-6 block max-w-[16ch] text-balance text-azul" />
+        <WordReveal texto={home.hero.title} delay={80} brillo="azul" className="font-display type-h1 mt-6 block max-w-[16ch] text-balance" />
         <p className="measure anim-rise-lcp mt-6 text-pretty text-[1.05rem] text-carbon/85 md:mt-7 md:text-[1.15rem]" style={d(160)}>
           {home.hero.text}
         </p>
         <div className="anim-rise mt-8 flex flex-col gap-3 sm:flex-row sm:items-center md:mt-10" style={d(240)}>
-          <TrackedLink href={home.hero.primary.href} event="cta_agenda" payload={{ section: "hero", element_id: "hero_agenda" }} size="lg" arrow>
+          <TrackedLink href={home.hero.primary.href} event="cta_agenda" payload={{ section: "hero", element_id: "hero_agenda" }} size="lg" arrow className="cta-vivo">
             {home.hero.primary.label}
           </TrackedLink>
           <ButtonLink href={home.hero.secondary.href} size="lg" variant="secondary">

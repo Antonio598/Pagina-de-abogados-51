@@ -39,11 +39,14 @@ const Arrow = () => (
   />
 );
 
-type ButtonLinkProps = Common & { href: string } & Omit<ComponentPropsWithoutRef<typeof Link>, "href" | "className" | "children">;
+type ButtonLinkProps = Common & { href: string; ref?: React.Ref<HTMLAnchorElement> } & Omit<
+    ComponentPropsWithoutRef<typeof Link>,
+    "href" | "className" | "children"
+  >;
 type ButtonProps = Common & Omit<ComponentPropsWithoutRef<"button">, "className" | "children">;
 
-export const ButtonLink = ({ href, variant = "primary", size = "md", arrow, className, children, ...rest }: ButtonLinkProps) => (
-  <Link href={href} className={cn(base, variants[variant], sizes[size], className)} {...rest}>
+export const ButtonLink = ({ href, variant = "primary", size = "md", arrow, className, children, ref, ...rest }: ButtonLinkProps) => (
+  <Link ref={ref} href={href} className={cn(base, variants[variant], sizes[size], className)} {...rest}>
     {children}
     {arrow && <Arrow />}
   </Link>

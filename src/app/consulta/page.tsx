@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check, Clock, MapPin, ShieldCheck, Video } from "lucide-react";
+import { ArrowRight, Check, MapPin, ShieldCheck, Video } from "lucide-react";
 import { landing } from "@content/landing";
 import { faqsById } from "@content/faqs";
 import { site } from "@content/site";
@@ -16,6 +16,7 @@ import { VideoBlock } from "@/components/landing/VideoBlock";
 import { AgenteIaLink } from "@/components/landing/AgenteIaLink";
 import { CountUp, ReadingProgress, SpotlightCard, TrazoIcono, WordReveal } from "@/components/landing/Efectos";
 import { ExitIntent } from "@/components/landing/ExitIntent";
+import { MagneticLink } from "@/components/landing/Magnetico";
 import { BarraFija } from "@/components/landing/BarraFija";
 import { TrackedLink } from "@/components/ui/TrackedLink";
 
@@ -52,8 +53,12 @@ export default async function LandingPage() {
 
       {/* Hero ---------------------------------------------------------- */}
       <section className="relative overflow-hidden">
-        <div aria-hidden className="aurora-veritum pointer-events-none absolute inset-x-0 top-0 h-[36rem]" />
-        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-grid-marfil opacity-60" />
+        {/* Esferas de luz que respiran detrás del encabezado. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+          <span className="orbe orbe-azul left-[-18%] top-[-10%] size-[22rem]" />
+          <span className="orbe orbe-dorado right-[-16%] top-[14%] size-[18rem]" />
+          <div className="absolute inset-x-0 top-0 h-64 bg-grid-marfil opacity-50" />
+        </div>
 
         <div className="relative mx-auto max-w-2xl px-4 pb-10 pt-8">
           <p className="eyebrow anim-rise flex items-center gap-2" style={d(0)}>
@@ -61,7 +66,7 @@ export default async function LandingPage() {
             {landing.hero.eyebrow}
           </p>
 
-          <WordReveal texto={landing.hero.title} delay={80} className="font-display type-h1 mt-4 text-balance text-azul" />
+          <WordReveal texto={landing.hero.title} delay={80} brillo="azul" className="font-display type-h1 mt-4 text-balance" />
 
           <p className="anim-rise-lcp mt-4 text-pretty text-[1.05rem] text-carbon/85" style={d(160)}>
             {landing.hero.text}
@@ -81,7 +86,7 @@ export default async function LandingPage() {
 
           {cobroConfigurado && (
             <div className="anim-rise mt-7 flex flex-wrap items-end gap-x-4 gap-y-2" style={d(260)}>
-              <p className="font-display text-[2.6rem] leading-none text-azul">
+              <p className="font-display anim-pop text-[2.6rem] leading-none text-azul" style={d(320)}>
                 <CountUp hasta={Math.round(precio.centavos / 100)} moneda={precio.moneda} />
               </p>
               {precio.conDescuento && (
@@ -100,7 +105,7 @@ export default async function LandingPage() {
               className={`anim-rise mt-5 flex items-start gap-3 rounded-brand border p-4 ${pocos ? "pulso-dorado border-dorado/60 bg-dorado/10" : "border-gris bg-blanco"}`}
               style={d(300)}
             >
-              <Clock className="mt-0.5 size-5 shrink-0 text-dorado-2" strokeWidth={1.75} aria-hidden />
+              <span className="punto-vivo mt-1.5 size-2.5 shrink-0 rounded-full bg-dorado text-dorado" aria-hidden />
               <p className="text-[0.95rem] text-carbon/90">
                 <strong className="font-medium text-azul">{landing.escasez.titulo(libres)}</strong>
                 <br />
@@ -110,16 +115,16 @@ export default async function LandingPage() {
           )}
 
           <div className="anim-rise mt-6 flex flex-col gap-3" style={d(340)}>
-            <TrackedLink
+            <MagneticLink
               href="/consulta/agendar"
               size="lg"
               arrow
               event="cta_agenda"
               payload={{ section: "landing_hero", element_id: "hero" }}
-              className="cta-destello w-full"
+              className="w-full"
             >
               {landing.hero.cta}
-            </TrackedLink>
+            </MagneticLink>
             <AgenteIaLink href={env.agenteIaUrl} className="w-full">
               {landing.agente.cta}
             </AgenteIaLink>
@@ -153,7 +158,7 @@ export default async function LandingPage() {
       <section className="mx-auto max-w-2xl px-4 py-10">
         <ul className="grid grid-cols-3 gap-3">
           {landing.cifras.map((c) => (
-            <li key={c.texto} className="rounded-brand border border-gris bg-blanco p-4 text-center">
+            <li key={c.texto} className="borde-vivo rounded-brand border border-gris bg-blanco p-4 text-center">
               <p className="font-display text-[1.7rem] leading-none text-azul">
                 <CountUp hasta={c.valor} sufijo={"sufijo" in c ? c.sufijo : ""} />
               </p>
@@ -183,7 +188,7 @@ export default async function LandingPage() {
         <ul className="mt-6 space-y-3">
           {landing.paraTi.items.map((item, i) => (
             <li key={item.titulo}>
-              <SpotlightCard className="rounded-brand border border-gris bg-blanco p-5 shadow-card transition-[border-color,transform] duration-250 hover:-translate-y-0.5 hover:border-dorado/40">
+              <SpotlightCard className="borde-vivo rounded-brand border border-gris bg-blanco p-5 shadow-card transition-transform duration-250 hover:-translate-y-1">
                 <p className="font-display flex items-baseline gap-3 text-[1.15rem] text-azul">
                   <span className="text-sm tabular-nums text-dorado-2" aria-hidden>
                     {pad2(i + 1)}
@@ -249,9 +254,9 @@ export default async function LandingPage() {
             ))}
           </ol>
           <div className="mt-8">
-            <TrackedLink href="/consulta/agendar" size="lg" arrow event="cta_agenda" payload={{ section: "landing_pasos" }} className="cta-destello w-full">
+            <MagneticLink href="/consulta/agendar" size="lg" arrow event="cta_agenda" payload={{ section: "landing_pasos" }} className="w-full">
               {landing.hero.cta}
-            </TrackedLink>
+            </MagneticLink>
           </div>
         </div>
       </section>
@@ -309,22 +314,25 @@ export default async function LandingPage() {
 
       {/* Cierre --------------------------------------------------------- */}
       <section className="relative overflow-hidden bg-azul text-marfil">
-        <div aria-hidden className="aurora-veritum pointer-events-none absolute inset-0 opacity-70" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+          <span className="orbe orbe-dorado left-[-10%] top-[-20%] size-[20rem] opacity-40" />
+          <span className="orbe orbe-azul right-[-12%] bottom-[-25%] size-[22rem] opacity-60" />
+        </div>
         <div className="relative mx-auto max-w-2xl px-4 py-14 text-center">
-          <h2 className="font-display type-h1 text-balance text-blanco">{landing.cierre.title}</h2>
+          <WordReveal as="h2" texto={landing.cierre.title} brillo="claro" className="font-display type-h1 block text-balance" />
           <p className="mx-auto mt-4 max-w-md text-marfil/85">{landing.cierre.text}</p>
           {libres > 0 && <p className="mt-3 text-sm text-dorado">{landing.escasez.titulo(libres)}</p>}
-          <TrackedLink
+          <MagneticLink
             href="/consulta/agendar"
             size="lg"
             arrow
             variant="inverse"
             event="cta_agenda"
             payload={{ section: "landing_cierre" }}
-            className="cta-destello mt-7 w-full"
+            className="mt-7 w-full"
           >
             {landing.cierre.cta}
-          </TrackedLink>
+          </MagneticLink>
           <p className="mt-6 text-sm text-marfil/70">
             <Link href="/" className="underline underline-offset-4 hover:text-blanco">
               Conoce el sitio de VERITUM

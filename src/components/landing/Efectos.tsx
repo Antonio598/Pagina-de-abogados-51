@@ -48,21 +48,28 @@ export const WordReveal = ({
   className,
   delay = 0,
   as: Tag = "h1",
+  brillo,
 }: {
   texto: string;
   className?: string;
   delay?: number;
   as?: "h1" | "h2" | "p" | "span";
-}) => (
-  <Tag className={className}>
-    {texto.split(" ").map((palabra, i) => (
-      <span key={`${palabra}-${i}`} className="palabra" style={{ ["--i" as string]: i, ["--d" as string]: `${delay}ms` } as CSSProperties}>
-        {palabra}
-        {i < texto.split(" ").length - 1 ? " " : ""}
-      </span>
-    ))}
-  </Tag>
-);
+  /** Barrido dorado que recorre el titular tras aparecer. */
+  brillo?: "azul" | "claro";
+}) => {
+  const palabras = texto.split(" ");
+  const clase = brillo ? (brillo === "claro" ? "palabra-brillo palabra-brillo-claro" : "palabra-brillo") : "palabra";
+  return (
+    <Tag className={className}>
+      {palabras.map((palabra, i) => (
+        <span key={`${palabra}-${i}`} className={clase} style={{ ["--i" as string]: i, ["--d" as string]: `${delay}ms` } as CSSProperties}>
+          {palabra}
+          {i < palabras.length - 1 ? " " : ""}
+        </span>
+      ))}
+    </Tag>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Número que sube contando al entrar en pantalla

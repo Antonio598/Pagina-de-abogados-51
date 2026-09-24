@@ -144,7 +144,8 @@ export const SpotlightCard = ({ children, className }: { children: ReactNode; cl
 
   const entrar = () => {
     const el = ref.current;
-    if (!el) return;
+    // Sin cursor no hay nada que seguir y el dedo taparía la luz.
+    if (!el || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
     // El rectángulo se mide una vez al entrar: medirlo en cada movimiento
     // obligaría al navegador a recalcular la distribución constantemente.
     caja.current = el.getBoundingClientRect();

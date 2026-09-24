@@ -9,11 +9,15 @@ import { cn } from "@/lib/utils";
 
 const FUERZA = 10; // píxeles máximos de desplazamiento
 
+/** En un teléfono no hay cursor al que seguir: el efecto no se activa. */
+const conPuntero = () => typeof window !== "undefined" && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
 export const MagneticLink = ({ className, ...props }: ComponentProps<typeof TrackedLink>) => {
   const ref = useRef<HTMLAnchorElement>(null);
   const caja = useRef<DOMRect | null>(null);
 
   const medir = () => {
+    if (!conPuntero()) return;
     caja.current = ref.current?.getBoundingClientRect() ?? null;
   };
 

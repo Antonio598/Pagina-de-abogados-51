@@ -787,6 +787,73 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   animation: rise-in 360ms var(--ease-brand);
 }
 
+
+/* ==========================================================================
+   ADAPTACIÓN A MÓVIL Y PANTALLAS TÁCTILES
+   Tres efectos nacen del ratón (magnético, brillo que sigue al cursor e
+   inclinación 3D) y uno es caro de pintar (el borde que gira). En un teléfono
+   no hay cursor, el dedo tapa aquello que iluminan y el `:hover` se queda
+   pegado tras el toque. Aquí se apagan y se sustituyen por algo que sí aporta.
+   ========================================================================== */
+
+@media (hover: none), (pointer: coarse) {
+  /* Sin cursor no hay a quién seguir: el botón no se mueve bajo el dedo. */
+  .magnetico {
+    transform: none !important;
+  }
+
+  /* El dedo taparía justo la zona iluminada. */
+  .spotlight::after {
+    display: none;
+  }
+
+  /* La inclinación 3D depende de la posición del puntero. */
+  .tilt {
+    transform: none !important;
+  }
+
+  /* El borde giratorio repinta un degradado cónico en cada fotograma: en un
+     teléfono se cambia por un borde dorado fijo, que no cuesta nada. */
+  .borde-vivo::before {
+    animation: none;
+    background: none;
+  }
+  .borde-vivo {
+    border-color: color-mix(in srgb, var(--color-dorado) 32%, transparent);
+  }
+
+  /* El destello llama la atención y se detiene: en móvil no compite con la
+     lectura ni consume batería de forma indefinida. */
+  .cta-vivo::after,
+  .cta-destello::after {
+    animation-iteration-count: 3;
+  }
+}
+
+/* Pantallas pequeñas: menos carga de pintado en las esferas de luz. */
+@media (max-width: 640px) {
+  /* `filter: blur` obliga a rasterizar una capa enorme en cada cambio de escala
+     y es el efecto más caro de toda la página en un teléfono. El degradado
+     radial ya difumina por sí solo: se quita el desenfoque y se deja de
+     reservar capa. */
+  .orbe {
+    filter: none;
+    opacity: 0.4;
+    will-change: auto;
+  }
+  /* Con una esfera basta para dar profundidad; dos saturan una pantalla angosta. */
+  .orbe-dorado {
+    display: none;
+  }
+}
+
+/* En pantallas táctiles el toque deja el `:hover` pegado en iOS. */
+@media (hover: none) {
+  .borde-vivo:hover::before {
+    opacity: 0;
+  }
+}
+
 /* --- 14. Movimiento reducido: todo quieto y legible ------------------------ */
 @media (prefers-reduced-motion: reduce) {
   *,

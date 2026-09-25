@@ -371,6 +371,39 @@ create index if not exists appointments_telefono_norm_idx
   on veritum.appointments (right(regexp_replace(telefono, '[^0-9]', '', 'g'), 10));
 
 -- ---------------------------------------------------------------------------
+-- ¿Esta persona ya tiene una cita agendada?
+--
+-- Si la tiene, no se le mandan recordatorios: el seguimiento existe para que
+-- agende, y ya agendó. Cuenta como cita agendada:
+--   · una cita PAGADA que todavía no ha ocurrido, y
+--   · una cita en proceso de pago cuya retención sigue viva (está en la pasarela
+--     ahora mismo; si no paga y la retención vence, el seguimiento se reanuda).
+--
+-- Una cita pagada que ya ocurrió NO bloquea: si después de su asesoría la
+-- persona vuelve a escribir y se queda callada, el seguimiento tiene sentido.
+--
+-- El cruce se hace por los 10 últimos dígitos, porque las citas guardan el
+-- teléfono tal como lo escribió la persona. Usa appointments_telefono_norm_idx.
+-- ---------------------------------------------------------------------------
+create or replace function veritum.tiene_cita_agendada(p_telefono_normalizado text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = veritum, public
+as $$
+  select exists (
+    select 1
+      from veritum.appointments a
+     where right(regexp_replace(a.telefono, '[^0-9]', '', 'g'), 10) = p_telefono_normalizado
+       and (
+         (a.status = 'pagada' and a.slot_start >= now())
+         or (a.status = 'pendiente_pago' and a.hold_expires_at > now())
+       )
+  );
+$$;
+
+-- ---------------------------------------------------------------------------
 -- Reclamo atómico de recordatorios
 --
 -- Devuelve los recordatorios que hay que mandar YA, dejándolos marcados como
@@ -418,6 +451,10 @@ begin
       from veritum.contactos x
      where x.recordatorios_resueltos < 3
        and x.ultimo_contacto <= v_ahora - make_interval(mins => p_min1)
+       -- Quien ya tiene cita agendada no se persigue. Se SALTA, no se consume:
+       -- los recordatorios siguen disponibles, así que si la retención del pago
+       -- vence sin pagar, el seguimiento se reanuda solo.
+       and not veritum.tiene_cita_agendada(x.telefono_normalizado)
      order by x.ultimo_contacto asc
      limit greatest(1, p_limite)
      for update skip locked
@@ -522,12 +559,18 @@ as $$
      and r.id in (
        select r2.id
          from veritum.recordatorios r2
-        where (r2.estado = 'fallido'
-               and r2.intentos < p_max_intentos
-               and r2.reintentar_at is not null
-               and r2.reintentar_at <= now())
-           or (r2.estado = 'pendiente'
-               and r2.updated_at < now() - make_interval(mins => p_huerfano_min))
+        where (
+                (r2.estado = 'fallido'
+                 and r2.intentos < p_max_intentos
+                 and r2.reintentar_at is not null
+                 and r2.reintentar_at <= now())
+             or (r2.estado = 'pendiente'
+                 and r2.updated_at < now() - make_interval(mins => p_huerfano_min))
+              )
+          -- Si agendó entre el intento fallido y el reintento, ya no se manda.
+          -- El paréntesis de arriba es necesario: sin él este `and` se pegaría
+          -- solo a la segunda rama del `or`.
+          and not veritum.tiene_cita_agendada(r2.telefono_normalizado)
         order by r2.created_at asc
         limit greatest(1, p_limite)
         for update skip locked

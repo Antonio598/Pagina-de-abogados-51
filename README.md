@@ -217,6 +217,11 @@ recordatorios solo salen cuando llega un contacto nuevo.
 
 Reglas que conviene tener claras:
 
+- **Quien ya agendó no recibe recordatorios.** Bloquea una cita pagada que todavía
+  no ha ocurrido, y un pago en curso con la retención viva. No se consume nada:
+  si la retención vence sin que pague, el seguimiento se reanuda solo —
+  justamente el caso más valioso, alguien que estuvo a punto de pagar y se fue.
+  Una cita que ya ocurrió no bloquea.
 - Si la hora de contacto se actualiza, el reloj vuelve a cero y los recordatorios
   que aún no se hayan mandado se recalculan desde la hora nueva. Los ya enviados
   no se repiten nunca.

@@ -374,11 +374,18 @@ export const barrerEnSegundoPlano = async (): Promise<void> => {
 // Lecturas para el panel
 // ---------------------------------------------------------------------------
 
-export const ultimosContactos = async (limite = 20): Promise<Contacto[]> => {
+/** Contacto con el dato de si está en pausa por tener ya una cita agendada. */
+export type ContactoConCita = Contacto & { con_cita: boolean };
+
+export const ultimosContactos = async (limite = 20): Promise<ContactoConCita[]> => {
   if (!dbReady) return [];
   try {
-    return await db()<Contacto[]>`
-      select * from ${t("contactos")} order by updated_at desc limit ${limite}`;
+    const sql = db();
+    return await sql<ContactoConCita[]>`
+      select c.*, ${sql.unsafe(fn("tiene_cita_agendada"))}(c.telefono_normalizado) as con_cita
+        from ${t("contactos")} c
+       order by c.updated_at desc
+       limit ${limite}`;
   } catch (err) {
     console.error("[seguimiento] ultimosContactos", err);
     return [];
@@ -405,6 +412,8 @@ export const ultimosRecordatorios = async (limite = 20): Promise<RecordatorioCon
 export type ResumenSeguimiento = {
   contactos: number;
   enSeguimiento: number;
+  /** En pausa porque ya tienen una cita agendada. */
+  conCita: number;
   enviados: number;
   fallidos: number;
   omitidos: number;
@@ -414,9 +423,15 @@ export const resumenSeguimiento = async (): Promise<ResumenSeguimiento | null> =
   if (!dbReady) return null;
   try {
     const sql = db();
-    const [fila] = await sql<{ contactos: string; en_seguimiento: string }[]>`
+    const [fila] = await sql<{ contactos: string; en_seguimiento: string; con_cita: string }[]>`
       select count(*) as contactos,
-             count(*) filter (where recordatorios_resueltos < 3) as en_seguimiento
+             count(*) filter (
+               where recordatorios_resueltos < 3
+                 and not ${sql.unsafe(fn("tiene_cita_agendada"))}(telefono_normalizado)
+             ) as en_seguimiento,
+             count(*) filter (
+               where ${sql.unsafe(fn("tiene_cita_agendada"))}(telefono_normalizado)
+             ) as con_cita
         from ${t("contactos")}`;
     const [estados] = await sql<{ enviados: string; fallidos: string; omitidos: string }[]>`
       select count(*) filter (where estado = 'enviado') as enviados,
@@ -426,6 +441,7 @@ export const resumenSeguimiento = async (): Promise<ResumenSeguimiento | null> =
     return {
       contactos: Number(fila?.contactos ?? 0),
       enSeguimiento: Number(fila?.en_seguimiento ?? 0),
+      conCita: Number(fila?.con_cita ?? 0),
       enviados: Number(estados?.enviados ?? 0),
       fallidos: Number(estados?.fallidos ?? 0),
       omitidos: Number(estados?.omitidos ?? 0),

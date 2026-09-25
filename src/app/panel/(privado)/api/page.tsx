@@ -181,7 +181,11 @@ export default async function ApiPage() {
         <Tarjeta
           titulo="En seguimiento"
           valor={resumen ? `${resumen.enSeguimiento} de ${resumen.contactos}` : "—"}
-          pie={resumen ? `${resumen.enviados} enviados · ${resumen.fallidos} fallidos · ${resumen.omitidos} descartados` : undefined}
+          pie={
+            resumen
+              ? `${resumen.conCita} en pausa por tener cita · ${resumen.enviados} enviados · ${resumen.fallidos} fallidos`
+              : undefined
+          }
         />
       </div>
 
@@ -280,6 +284,12 @@ export default async function ApiPage() {
         </div>
         <ul className="mt-4 space-y-2 text-[0.92rem] text-carbon/85">
           <li>
+            <strong>Quien ya agendó no recibe recordatorios.</strong> Si el teléfono tiene una cita pagada pendiente de
+            ocurrir, o un pago en curso con la retención viva, el seguimiento se detiene: ya no hay nada que recordarle.
+            No se consume nada, así que si la retención vence sin que pague, el seguimiento se reanuda solo. Una cita que
+            ya ocurrió no bloquea: si después vuelve a escribir y se queda callado, tiene sentido darle seguimiento.
+          </li>
+          <li>
             <strong>Nunca se repiten.</strong> Una vez enviado el recordatorio 1 a un teléfono, no se le vuelve a enviar
             aunque después conteste y se quede callado de nuevo. Lo mismo con el 2 y el 3.
           </li>
@@ -356,7 +366,7 @@ export default async function ApiPage() {
             <table className="w-full border-collapse text-left text-[0.92rem]">
               <thead className="hidden sm:table-header-group">
                 <tr className="border-b border-gris bg-marfil/60">
-                  {["Teléfono", "Último contacto", "Inactividad", "Avisos", "Recordatorios", ""].map((h) => (
+                  {["Teléfono", "Último contacto", "Inactividad", "Avisos", "Recordatorios", "Estado", ""].map((h) => (
                     <th key={h} scope="col" className="eyebrow px-4 py-3">
                       {h}
                     </th>
@@ -395,6 +405,23 @@ export default async function ApiPage() {
                             />
                           ))}
                         </span>
+                      </td>
+                      <td className="block px-4 sm:table-cell sm:py-3">
+                        <span className="eyebrow mr-2 sm:hidden">Estado</span>
+                        {c.con_cita ? (
+                          <span
+                            className="rounded-full bg-azul px-2 py-0.5 text-xs uppercase tracking-wider text-blanco"
+                            title="Ya tiene cita agendada: no se le mandan recordatorios"
+                          >
+                            Con cita
+                          </span>
+                        ) : c.recordatorios_resueltos >= 3 ? (
+                          <span className="rounded-full bg-marfil px-2 py-0.5 text-xs uppercase tracking-wider text-carbon/75">
+                            Agotado
+                          </span>
+                        ) : (
+                          <span className="text-xs text-carbon/75">En seguimiento</span>
+                        )}
                       </td>
                       <td className="block px-4 pb-3 sm:table-cell sm:py-3 sm:text-right">
                         {c.recordatorios_resueltos > 0 && (

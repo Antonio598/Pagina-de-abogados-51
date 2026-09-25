@@ -121,7 +121,17 @@ const slotsFromRules = (dateISO: string, rules: AvailabilityRule[]) => {
  * Horarios libres de un rango de días: quita los pasados (según la anticipación
  * mínima), los bloqueados y los ya ocupados por citas pagadas o retenidas.
  */
-export const getAvailability = async (fromISO: string, days: number): Promise<DayAvailability[]> => {
+/**
+ * Horarios disponibles. `leadMinutos` es la anticipación mínima y por omisión
+ * es la global; el servicio prioritario pasa 48 h, porque la revisión
+ * documental no puede existir sin tiempo para revisar. No es un aviso: los
+ * horarios más cercanos simplemente no se ofrecen.
+ */
+export const getAvailability = async (
+  fromISO: string,
+  days: number,
+  leadMinutos: number = LEAD_MINUTES,
+): Promise<DayAvailability[]> => {
   const sql = db();
   const toISO = addDaysISO(fromISO, days);
   const from = parseISODate(fromISO);
@@ -139,7 +149,7 @@ export const getAvailability = async (fromISO: string, days: number): Promise<Da
   ]);
 
   const busy = new Set(ocupados.map((r) => r.slot_start.getTime()));
-  const minStart = Date.now() + LEAD_MINUTES * 60_000;
+  const minStart = Date.now() + Math.max(0, leadMinutos) * 60_000;
 
   const result: DayAvailability[] = [];
   for (let i = 0; i < days; i++) {
@@ -155,12 +165,12 @@ export const getAvailability = async (fromISO: string, days: number): Promise<Da
 };
 
 /** Comprueba que un horario concreto sigue siendo ofertable (antes de cobrar). */
-export const isSlotOffered = async (startISO: string) => {
+export const isSlotOffered = async (startISO: string, leadMinutos: number = LEAD_MINUTES) => {
   const start = new Date(startISO);
   if (Number.isNaN(start.getTime())) return false;
-  if (start.getTime() < Date.now() + LEAD_MINUTES * 60_000) return false;
+  if (start.getTime() < Date.now() + Math.max(0, leadMinutos) * 60_000) return false;
   const dateISO = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(start);
-  const [day] = await getAvailability(dateISO, 1);
+  const [day] = await getAvailability(dateISO, 1, leadMinutos);
   return day.slots.some((s) => new Date(s.start).getTime() === start.getTime());
 };
 

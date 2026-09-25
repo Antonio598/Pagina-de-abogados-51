@@ -1,32 +1,24 @@
 "use client";
 
-// Ventana al intentar salir. Aparece una sola vez por sesión, nunca en el
-// formulario ni después de pagar, y se puede cerrar con Esc, con clic fuera o
-// con un botón visible. No tapa el contenido al cerrarse.
+// Ventana al intentar salir. Es de AYUDA, no de retención.
+//
+// No lleva precio, ni cuenta atrás, ni cupo: quien se está yendo de una landing
+// de defensa laboral no necesita que lo apuren, necesita otra vía para preguntar.
+// Ofrece el asistente y la sección de cómo trabajamos, y nada más.
+//
+// Aparece una sola vez por sesión, nunca en el formulario ni después de pagar, y
+// se cierra con Esc, con clic fuera o con dos botones visibles.
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Timer, Video, X } from "lucide-react";
+import { MessageCircle, X } from "lucide-react";
 import { landing } from "@content/landing";
-import { site } from "@content/site";
 import { track } from "@/lib/analytics";
 import { TrackedLink } from "@/components/ui/TrackedLink";
 
 const CLAVE = "veritum_salida";
 
-export const ExitIntent = ({
-  precio,
-  precioNormal,
-  conDescuento,
-  restanteMs,
-  libres,
-}: {
-  precio: string;
-  precioNormal: string;
-  conDescuento: boolean;
-  restanteMs: number | null;
-  libres: number;
-}) => {
+export const ExitIntent = ({ agenteUrl }: { agenteUrl?: string }) => {
   const pathname = usePathname();
   const [abierto, setAbierto] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
@@ -92,7 +84,7 @@ export const ExitIntent = ({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setAbierto(false);
       if (e.key !== "Tab" || !panel.current) return;
-      const foco = panel.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled])');
+      const foco = panel.current.querySelectorAll<HTMLElement>("a[href], button:not([disabled])");
       if (foco.length === 0) return;
       const primero = foco[0];
       const ultimo = foco[foco.length - 1];
@@ -114,8 +106,7 @@ export const ExitIntent = ({
   }, [abierto]);
 
   if (!abierto) return null;
-
-  const minutos = restanteMs && restanteMs > 0 ? Math.max(1, Math.ceil(restanteMs / 60000)) : null;
+  const s = landing.salida;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center">
@@ -141,43 +132,45 @@ export const ExitIntent = ({
           <X className="size-5" strokeWidth={1.75} aria-hidden />
         </button>
 
-        <p className="eyebrow">{landing.salida.eyebrow}</p>
+        <p className="eyebrow">{s.eyebrow}</p>
         <h2 id="salida-titulo" className="font-display type-h2 mt-2 text-balance text-azul">
-          {landing.salida.title}
+          {s.title}
         </h2>
-        <p className="mt-3 text-[0.98rem] text-carbon/85">{landing.salida.text}</p>
+        <p className="mt-3 text-[0.98rem] text-carbon/85">{s.text}</p>
 
-        <ul className="mt-5 space-y-2.5 text-[0.95rem]">
-          <li className="flex items-center gap-3">
-            <span className="font-display text-[1.6rem] leading-none text-azul">{precio}</span>
-            {conDescuento && <span className="text-sm text-carbon/70 line-through">{precioNormal}</span>}
-          </li>
-          {minutos !== null && (
-            <li className="flex items-center gap-2 text-carbon/85">
-              <Timer className="size-4 shrink-0 text-dorado-2" aria-hidden />
-              {landing.salida.minutos(minutos)}
-            </li>
+        <div className="mt-6 space-y-3">
+          {agenteUrl && (
+            <a
+              href={agenteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setAbierto(false)}
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-brand bg-azul px-6 text-base font-medium text-blanco transition-colors hover:bg-azul-2"
+            >
+              <MessageCircle className="size-[18px]" strokeWidth={1.75} aria-hidden />
+              {s.ctaAsistente}
+            </a>
           )}
-          {libres > 0 && (
-            <li className="flex items-center gap-2 text-carbon/85">
-              <Video className="size-4 shrink-0 text-dorado-2" aria-hidden />
-              {landing.salida.cupo(libres)}
-            </li>
-          )}
-        </ul>
+          <TrackedLink
+            href="/consulta#como-trabajamos"
+            variant="secondary"
+            size="lg"
+            className="w-full"
+            event="cta_agenda"
+            payload={{ section: "salida", element_id: "exit_proceso" }}
+            onClick={() => setAbierto(false)}
+          >
+            {s.ctaProceso}
+          </TrackedLink>
+        </div>
 
-        <TrackedLink
-          href="/consulta/agendar"
-          className="cta-vivo mt-6 w-full"
-          size="lg"
-          arrow
-          event="cta_agenda"
-          payload={{ section: "salida", element_id: "exit_intent" }}
+        <button
+          type="button"
           onClick={() => setAbierto(false)}
+          className="link-text mx-auto mt-4 block min-h-10 text-sm"
         >
-          {landing.salida.cta}
-        </TrackedLink>
-        <p className="mt-3 text-center text-xs text-carbon/70">{site.modalidad}</p>
+          {s.cerrar}
+        </button>
       </div>
     </div>
   );

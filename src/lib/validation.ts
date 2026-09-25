@@ -1,6 +1,7 @@
 // Esquemas de validación compartidos entre cliente y servidor (Bloque 6).
 import { z } from "zod";
 import { contactForm } from "@content/contact";
+import { productoValues, situacionValues } from "@content/productos";
 
 const e = contactForm.errors;
 
@@ -48,6 +49,11 @@ export const reservaSchema = z.object({
   descripcion: z.string().trim().max(contactForm.maxChars, e.descripcionMax).optional().or(z.literal("")),
   urgente: optionalDate,
   slot: z.string().trim().datetime({ message: "Selecciona un horario disponible." }),
+  // El servicio decide el importe y la anticipación mínima. El navegador manda
+  // solo el id: el precio lo pone el servidor a partir del catálogo.
+  producto: z.enum(productoValues, { message: "Elige uno de los servicios." }),
+  // Situación del patrón (defensa laboral). Opcional: /agenda no la usa.
+  situacion: z.enum(situacionValues).optional(),
   terminos: z.literal(true, { message: "Es necesario aceptar los términos y el aviso de privacidad." }),
   origen: z.enum(["landing", "sitio"]),
   utm: z.record(z.string(), z.string().max(120)).optional(),

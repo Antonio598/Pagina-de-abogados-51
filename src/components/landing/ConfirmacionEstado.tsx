@@ -6,7 +6,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CalendarCheck, CheckCircle2, Loader2, TriangleAlert } from "lucide-react";
+import { CalendarCheck, CheckCircle2, FileUp, Loader2, TriangleAlert } from "lucide-react";
 import { landing } from "@content/landing";
 import { process as proceso } from "@content/process";
 import { track } from "@/lib/analytics";
@@ -71,6 +71,22 @@ export const ConfirmacionEstado = ({ sessionId }: { sessionId?: string }) => {
             <dd className="text-right text-[0.98rem] text-carbon/90">{estado?.cuando}</dd>
           </div>
         </dl>
+
+        {/* El portal, con el folio ya en pantalla: es el momento en que el
+            cliente lo tiene delante y puede subir su documentación. */}
+        <div className="mt-8 rounded-brand border border-dorado bg-blanco p-5">
+          <h2 className="font-display type-h3 flex items-center gap-2 text-azul">
+            <FileUp className="size-5 text-dorado-2" strokeWidth={1.75} aria-hidden />
+            {landing.confirmacion.portalTitle}
+          </h2>
+          <p className="mt-2 text-[0.95rem] text-carbon/85">{landing.confirmacion.portalTexto}</p>
+          <Link
+            href="/portal"
+            className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-brand bg-azul px-6 text-base font-medium text-blanco transition-colors hover:bg-azul-2"
+          >
+            {landing.confirmacion.portalCta}
+          </Link>
+        </div>
 
         <h2 className="font-display type-h3 mt-8 flex items-center gap-2 text-azul">
           <CalendarCheck className="size-5 text-dorado-2" strokeWidth={1.75} aria-hidden />

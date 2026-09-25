@@ -1,47 +1,46 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { PROMO_COOKIE, promoMinutes, readPromo, signPromo } from "@/lib/promo";
 import { PANEL_COOKIE } from "@/lib/panel-auth-shared";
+import { PORTAL_COOKIE } from "@/lib/portal-auth-shared";
 
 // Convención de Next.js 16 (antes `middleware.ts`).
-// Dos trabajos, ambos ligeros:
-//  1. Landing: arrancar el reloj de la promoción en la primera visita.
-//  2. Panel: redirigir a la pantalla de acceso si no hay cookie de sesión.
-//     La verificación real de la firma se hace en el layout del panel.
+//
+// Un solo trabajo, deliberadamente ligero: mandar a la pantalla de acceso a
+// quien no traiga cookie de sesión. La verificación real de la firma se hace en
+// el layout del panel y en la propia página del portal, que son la barrera de
+// verdad; aquí solo se comprueba que la cookie exista, para no meter
+// criptografía en el camino de cada petición.
+//
+// La landing ya no pasa por aquí: arrancaba el reloj de la promoción, que se
+// retiró junto con el descuento por tiempo limitado.
 
-export async function proxy(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  const aAcceso = (destino: string) => {
+    const url = request.nextUrl.clone();
+    url.pathname = destino;
+    url.search = `?desde=${encodeURIComponent(pathname)}`;
+    return NextResponse.redirect(url);
+  };
+
   if (pathname.startsWith("/panel") && pathname !== "/panel/acceso") {
-    if (!request.cookies.get(PANEL_COOKIE)?.value) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/panel/acceso";
-      url.search = `?desde=${encodeURIComponent(pathname)}`;
-      return NextResponse.redirect(url);
-    }
-    return NextResponse.next();
+    if (!request.cookies.get(PANEL_COOKIE)?.value) return aAcceso("/panel/acceso");
   }
 
-  if (pathname === "/consulta" || pathname.startsWith("/consulta/")) {
-    const existente = await readPromo(request.cookies.get(PROMO_COOKIE)?.value);
-    if (existente !== null) return NextResponse.next();
-
-    const response = NextResponse.next();
-    response.cookies.set(PROMO_COOKIE, await signPromo(Date.now()), {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      // Se guarda más tiempo del que dura la promoción para que, al volver,
-      // el visitante vea el precio normal y no un descuento reiniciado.
-      maxAge: 60 * 60 * 24 * 30,
-    });
-    response.headers.set("x-veritum-promo-min", String(promoMinutes));
-    return response;
+  // El portal del cliente: `/portal` es la pantalla de acceso, todo lo demás
+  // exige sesión.
+  if (pathname.startsWith("/portal/")) {
+    if (!request.cookies.get(PORTAL_COOKIE)?.value) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/portal";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/consulta/:path*", "/panel/:path*"],
+  matcher: ["/panel/:path*", "/portal/:path*"],
 };

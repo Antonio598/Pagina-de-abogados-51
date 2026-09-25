@@ -16,6 +16,8 @@ import { formatMoney } from "@/lib/pricing";
 import { stripe, stripeReady } from "@/lib/stripe";
 import { process as proceso } from "@content/process";
 import { site } from "@content/site";
+import { creditoRepresentacion, productoPorId, situacionLabel } from "@content/productos";
+import { checklistDe } from "@content/portal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,28 +30,76 @@ const areaLabel: Record<string, string> = {
   otro: "Otro",
 };
 
-const correoCliente = (cita: Appointment) =>
-  layout(
+const siteUrl = () => (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://veritum.com.mx").replace(/\/$/, "");
+
+const enlaceDe = (cita: Appointment) => cita.enlace_sesion ?? process.env.MEETING_URL?.trim() ?? null;
+
+const fecha = (d: Date | null) =>
+  d ? new Intl.DateTimeFormat("es-MX", { dateStyle: "long", timeZone: "America/Mexico_City" }).format(d) : null;
+
+const correoCliente = (cita: Appointment) => {
+  const producto = productoPorId(cita.producto_id);
+  const enlace = enlaceDe(cita);
+  const checklist = checklistDe(cita.situacion);
+  const portalUrl = `${siteUrl()}/portal`;
+
+  // Si la cita trae situación, el checklist de su situación es más útil que la
+  // lista genérica de "qué preparar" del sitio.
+  const preparar = cita.situacion
+    ? { titulo: checklist.titulo, items: [...checklist.necesario] }
+    : { titulo: proceso.prepare.title, items: [...proceso.prepare.bullets] };
+
+  return layout(
     "Tu asesoría está confirmada",
     `
-    <p style="margin:0 0 16px">Hola ${cita.nombre.split(" ")[0]}: recibimos tu pago y tu asesoría inicial quedó reservada.</p>
+    <p style="margin:0 0 16px">Hola ${cita.nombre.split(" ")[0]}: recibimos tu pago y tu sesión quedó reservada.</p>
     <table style="border-collapse:collapse;width:100%;margin-bottom:20px">
       ${filas({
         Folio: cita.folio,
+        Servicio: producto?.nombre ?? areaLabel[cita.area] ?? cita.area,
+        Situación: situacionLabel(cita.situacion),
         Fecha: formatDateTimeLong(cita.slot_start),
-        Duración: `${SLOT_MINUTES} minutos`,
-        Área: areaLabel[cita.area] ?? cita.area,
+        Duración: `hasta ${producto?.duracionMinutos ?? SLOT_MINUTES} minutos`,
         Modalidad: cita.modalidad,
         Importe: formatMoney(cita.precio_centavos, cita.moneda),
       })}
     </table>
-    <p style="margin:0 0 8px;color:#0D224C;font-weight:600">${proceso.prepare.title}</p>
+
+    <p style="margin:0 0 8px;color:#0D224C;font-weight:600">Tu videollamada</p>
+    <p style="margin:0 0 20px;color:#292A2D">${
+      enlace
+        ? `Entra a esta dirección a la hora de tu sesión:<br><a href="${enlace}" style="color:#0D224C">${enlace}</a>`
+        : "Te enviaremos el enlace de la videollamada por correo antes de tu sesión."
+    }</p>
+
+    <p style="margin:0 0 8px;color:#0D224C;font-weight:600">Sube tu documentación</p>
+    <p style="margin:0 0 12px;color:#292A2D">
+      Entra a <a href="${portalUrl}" style="color:#0D224C">${portalUrl}</a> con tu teléfono y el folio
+      <strong>${cita.folio}</strong>, y carga lo que tengas de tu asunto.${
+        producto?.requiereDocumentos
+          ? " Para la revisión prioritaria necesitamos tu documentación antes de la sesión: revisaremos lo que cargues y te confirmaremos por escrito el alcance delimitado de la revisión."
+          : ""
+      }
+    </p>
+    <p style="margin:0 0 8px;color:#0D224C;font-weight:600">${preparar.titulo}</p>
     <ul style="margin:0 0 20px;padding-left:18px;color:#292A2D">
-      ${proceso.prepare.bullets.map((b) => `<li style="margin-bottom:6px">${b}</li>`).join("")}
+      ${preparar.items.map((b) => `<li style="margin-bottom:6px">${b}</li>`).join("")}
     </ul>
+
+    <div style="border-left:3px solid #CA9E32;padding:12px 16px;background:#F7F4ED;margin-bottom:20px">
+      <p style="margin:0 0 6px;color:#0D224C;font-weight:600">${creditoRepresentacion.titulo}</p>
+      <p style="margin:0 0 8px;color:#292A2D">${creditoRepresentacion.texto}</p>
+      <p style="margin:0;color:#292A2D">
+        Importe a descontar: <strong>${formatMoney(cita.precio_centavos, cita.moneda)}</strong>${
+          fecha(cita.credito_vence_at) ? ` · vigente hasta el ${fecha(cita.credito_vence_at)}` : ""
+        }
+      </p>
+    </div>
+
     <p style="margin:0 0 16px;color:#292A2D">${proceso.note.text}</p>
     <p style="margin:0;color:#292A2D">${site.tagline}</p>`,
   );
+};
 
 const correoInterno = (cita: Appointment) =>
   layout(
@@ -58,6 +108,8 @@ const correoInterno = (cita: Appointment) =>
       ${filas({
         Folio: cita.folio,
         Origen: cita.origen,
+        Servicio: productoPorId(cita.producto_id)?.nombre,
+        Situación: situacionLabel(cita.situacion),
         Fecha: formatDateTimeLong(cita.slot_start),
         Área: areaLabel[cita.area] ?? cita.area,
         Modalidad: cita.modalidad,
@@ -69,7 +121,8 @@ const correoInterno = (cita: Appointment) =>
         "Fecha próxima": cita.fecha_proxima,
         Descripción: cita.descripcion,
         Importe: formatMoney(cita.precio_centavos, cita.moneda),
-        Promoción: cita.promo_aplicada,
+        "Crédito vigente hasta": fecha(cita.credito_vence_at),
+        "Enlace de sesión": enlaceDe(cita) ?? "SIN DEFINIR",
         "Pago (Stripe)": cita.stripe_payment_intent,
       })}
     </table>`,

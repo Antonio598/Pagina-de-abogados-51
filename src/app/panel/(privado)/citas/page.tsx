@@ -1,12 +1,44 @@
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
 import { CalendarX2, Download } from "lucide-react";
-import { formatDateLong, formatTime, SLOT_MINUTES } from "@/lib/booking";
-import { db, dbReady, t, type Appointment } from "@/lib/db";
+import { formatDateLong, formatTime } from "@/lib/booking";
+import { COLS_DOCUMENTO, db, dbReady, t, type Appointment, type Documento } from "@/lib/db";
+import { getSession } from "@/lib/panel-auth";
 import { formatMoney } from "@/lib/pricing";
+import { normalizarTelefono } from "@/lib/seguimiento";
+import { productoPorId } from "@content/productos";
 import { cn } from "@/lib/utils";
-import { CitaDetalle } from "@/components/panel/CitaDetalle";
+import { CitaDetalle, estadoCredito } from "@/components/panel/CitaDetalle";
 
 export const dynamic = "force-dynamic";
+
+// Acciones de servidor: cada una vuelve a comprobar la sesión, porque una acción
+// puede invocarse directamente sin pasar por la página.
+async function aplicarCredito(formData: FormData) {
+  "use server";
+  if (!(await getSession())) throw new Error("Sesión no válida.");
+  const id = String(formData.get("id") ?? "");
+  const asunto = String(formData.get("asunto") ?? "").trim().slice(0, 160);
+  const notas = String(formData.get("notas") ?? "").trim().slice(0, 300);
+  // El check de la base exige asunto cuando se marca como aplicado.
+  if (!id || !asunto) return;
+  await db()`
+    update ${t("appointments")}
+       set credito_aplicado_at = now(), credito_asunto = ${asunto}, credito_notas = ${notas || null}
+     where id = ${id}::uuid and status = 'pagada' and credito_aplicado_at is null`;
+  revalidatePath("/panel/citas");
+}
+
+async function guardarEnlace(formData: FormData) {
+  "use server";
+  if (!(await getSession())) throw new Error("Sesión no válida.");
+  const id = String(formData.get("id") ?? "");
+  const enlace = String(formData.get("enlace") ?? "").trim().slice(0, 500);
+  if (!id) return;
+  await db()`
+    update ${t("appointments")} set enlace_sesion = ${enlace || null} where id = ${id}::uuid`;
+  revalidatePath("/panel/citas");
+}
 
 const areaLabel: Record<string, string> = {
   familiar: "Familiar",
@@ -58,6 +90,23 @@ export default async function CitasPage({ searchParams }: PageProps<"/panel/cita
   }
   const detalle = citas.find((c) => c.id === abierta);
 
+  // Documentos del cliente de la cita abierta. Nunca se traen todos: solo los
+  // del expediente que se está mirando, y sin la columna de contenido.
+  let documentos: Documento[] = [];
+  if (detalle) {
+    const norm = normalizarTelefono(detalle.telefono);
+    if (norm) {
+      try {
+        documentos = await sql<Documento[]>`
+          select ${sql.unsafe(COLS_DOCUMENTO)} from ${t("documentos")}
+           where telefono_normalizado = ${norm} and eliminado_at is null
+           order by created_at desc`;
+      } catch (err) {
+        console.error("[panel/citas] documentos", err);
+      }
+    }
+  }
+
   const ingresos = citas.reduce((sum, c) => sum + c.precio_centavos, 0);
 
   return (
@@ -67,7 +116,7 @@ export default async function CitasPage({ searchParams }: PageProps<"/panel/cita
           <p className="eyebrow">Agenda</p>
           <h1 className="font-display type-h2 mt-1 text-azul">Citas pagadas</h1>
           <p className="mt-2 text-sm text-carbon/75">
-            Solo aparecen las citas con el pago registrado. Sesiones de {SLOT_MINUTES} minutos.
+            Solo aparecen las citas con el pago registrado.
           </p>
         </div>
         <a
@@ -107,7 +156,7 @@ export default async function CitasPage({ searchParams }: PageProps<"/panel/cita
           <table className="w-full border-collapse text-left text-[0.95rem]">
             <thead className="hidden sm:table-header-group">
               <tr className="border-b border-gris">
-                {["Fecha", "Hora", "Cliente", "Área", "Origen", "Importe", ""].map((h) => (
+                {["Fecha", "Hora", "Cliente", "Servicio", "Crédito", "Importe", ""].map((h) => (
                   <th key={h} scope="col" className="eyebrow px-4 py-3">
                     {h}
                   </th>
@@ -131,9 +180,26 @@ export default async function CitasPage({ searchParams }: PageProps<"/panel/cita
                       <span className="font-medium text-azul">{c.nombre}</span>
                       <span className="block text-xs text-carbon/70">{c.correo}</span>
                     </td>
-                    <td className="block px-4 sm:table-cell sm:py-3">{areaLabel[c.area] ?? c.area}</td>
                     <td className="block px-4 sm:table-cell sm:py-3">
-                      <span className="rounded-full bg-marfil px-2 py-0.5 text-xs uppercase tracking-wider text-carbon/75">{c.origen}</span>
+                      <span className="eyebrow mr-2 sm:hidden">Servicio</span>
+                      {productoPorId(c.producto_id)?.nombre ?? areaLabel[c.area] ?? c.area}
+                    </td>
+                    <td className="block px-4 sm:table-cell sm:py-3">
+                      <span className="eyebrow mr-2 sm:hidden">Crédito</span>
+                      {(() => {
+                        const e = estadoCredito(c);
+                        if (!e) return <span className="text-carbon/60">—</span>;
+                        return (
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-xs uppercase tracking-wider",
+                              e === "vigente" ? "bg-azul text-blanco" : "bg-marfil text-carbon/75",
+                            )}
+                          >
+                            {e}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="block px-4 tabular-nums sm:table-cell sm:py-3">{formatMoney(c.precio_centavos, c.moneda)}</td>
                     <td className="block px-4 pb-4 sm:table-cell sm:py-3 sm:text-right">
@@ -149,7 +215,15 @@ export default async function CitasPage({ searchParams }: PageProps<"/panel/cita
         </div>
       )}
 
-      {detalle && <CitaDetalle cita={detalle} volverA={`/panel/citas?f=${filtro}`} />}
+      {detalle && (
+        <CitaDetalle
+          cita={detalle}
+          volverA={`/panel/citas?f=${filtro}`}
+          documentos={documentos}
+          aplicarCredito={aplicarCredito}
+          guardarEnlace={guardarEnlace}
+        />
+      )}
     </>
   );
 }

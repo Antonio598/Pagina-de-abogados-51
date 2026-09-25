@@ -89,6 +89,54 @@ create unique index if not exists appointments_slot_unico
   where status in ('pagada', 'pendiente_pago');
 
 -- ---------------------------------------------------------------------------
+-- Servicio contratado y situación del patrón (defensa laboral)
+--
+-- Se usan text + check y no enum a propósito: un check se reemplaza con
+-- drop/add en la misma ejecución idempotente de este archivo, mientras que
+-- añadir un valor a un enum exige ALTER TYPE.
+-- Admiten NULL porque las citas anteriores no tienen servicio ni situación.
+-- ---------------------------------------------------------------------------
+alter table veritum.appointments add column if not exists producto_id text;
+alter table veritum.appointments add column if not exists situacion text;
+
+alter table veritum.appointments drop constraint if exists appointments_producto_chk;
+alter table veritum.appointments add constraint appointments_producto_chk
+  check (producto_id is null or producto_id in ('asesoria', 'revision-prioritaria'));
+
+alter table veritum.appointments drop constraint if exists appointments_situacion_chk;
+alter table veritum.appointments add constraint appointments_situacion_chk
+  check (situacion is null or situacion in ('citatorio', 'demanda', 'terminacion'));
+
+-- ---------------------------------------------------------------------------
+-- Crédito de representación
+--
+-- El importe pagado (precio_centavos) YA ES el crédito: no se guarda un saldo
+-- aparte porque sería el mismo dato dos veces y podría desincronizarse.
+-- Lo único que la base no puede deducir es hasta cuándo vale y si ya se aplicó.
+--
+-- credito_vence_at se fija AL PAGAR, no se calcula al leer: así un cambio
+-- futuro de la política no caduca créditos que ya se vendieron.
+-- ---------------------------------------------------------------------------
+alter table veritum.appointments add column if not exists credito_vence_at timestamptz;
+alter table veritum.appointments add column if not exists credito_aplicado_at timestamptz;
+alter table veritum.appointments add column if not exists credito_asunto text;
+alter table veritum.appointments add column if not exists credito_notas text;
+
+-- Si se marca como aplicado, hay que decir a qué asunto se aplicó.
+alter table veritum.appointments drop constraint if exists appointments_credito_chk;
+alter table veritum.appointments add constraint appointments_credito_chk
+  check (credito_aplicado_at is null or credito_asunto is not null);
+
+-- Enlace de la videollamada. El texto del sitio lo promete desde el principio
+-- y hasta ahora ningún código lo enviaba.
+alter table veritum.appointments add column if not exists enlace_sesion text;
+
+create index if not exists appointments_producto_idx on veritum.appointments (producto_id);
+create index if not exists appointments_credito_pendiente_idx
+  on veritum.appointments (credito_vence_at)
+  where status = 'pagada' and credito_aplicado_at is null;
+
+-- ---------------------------------------------------------------------------
 -- Disponibilidad: reglas semanales
 -- ---------------------------------------------------------------------------
 create table if not exists veritum.availability_rules (
@@ -153,6 +201,19 @@ create table if not exists veritum.stripe_events (
 -- si el horario sigue libre. Si otra persona lo tomó, devuelve NULL y la API
 -- responde "ese horario ya no está disponible".
 -- ---------------------------------------------------------------------------
+-- ---------------------------------------------------------------------------
+-- CUIDADO: `create or replace function` con una lista de argumentos DISTINTA
+-- crea una SOBRECARGA, no reemplaza. Al añadir producto y situación hay que
+-- borrar explícitamente la versión de 20 argumentos, o coexistirían las dos y
+-- la llamada quedaría ambigua. Tras la primera ejecución esto es un no-op, así
+-- que el archivo sigue siendo re-ejecutable.
+-- ---------------------------------------------------------------------------
+drop function if exists veritum.reservar_slot(
+  text, veritum.appointment_origin, timestamptz, timestamptz, integer,
+  text, text, text, text, text, text, text, text, date, text,
+  integer, text, boolean, text, jsonb
+);
+
 create or replace function veritum.reservar_slot(
   p_folio text,
   p_origen veritum.appointment_origin,
@@ -173,7 +234,10 @@ create or replace function veritum.reservar_slot(
   p_moneda text,
   p_promo_aplicada boolean,
   p_aviso_version text,
-  p_utm jsonb
+  p_utm jsonb,
+  p_producto_id text,
+  p_situacion text,
+  p_credito_vigencia_dias integer
 ) returns veritum.appointments
 language plpgsql
 security definer
@@ -211,14 +275,18 @@ begin
     nombre, correo, telefono, area, modalidad, entidad, municipio,
     descripcion, fecha_proxima, canal,
     precio_centavos, moneda, promo_aplicada,
-    aviso_version, consentimiento_at, utm
+    aviso_version, consentimiento_at, utm,
+    producto_id, situacion, credito_vence_at
   ) values (
     p_folio, 'pendiente_pago', p_origen, p_slot_start, p_slot_end,
     now() + make_interval(mins => p_hold_minutos),
     p_nombre, p_correo, p_telefono, p_area, p_modalidad, p_entidad, p_municipio,
     p_descripcion, p_fecha_proxima, p_canal,
     p_precio_centavos, p_moneda, p_promo_aplicada,
-    p_aviso_version, now(), coalesce(p_utm, '{}'::jsonb)
+    p_aviso_version, now(), coalesce(p_utm, '{}'::jsonb),
+    p_producto_id, p_situacion,
+    -- La vigencia del crédito se congela aquí, en el momento de la venta.
+    now() + make_interval(days => greatest(1, coalesce(p_credito_vigencia_dias, 90)))
   )
   returning * into v_row;
 
@@ -589,6 +657,63 @@ create trigger recordatorios_updated_at
   before update on veritum.recordatorios
   for each row execute function veritum.set_updated_at();
 
+-- ===========================================================================
+-- DOCUMENTOS DEL PORTAL DEL CLIENTE
+--
+-- El cliente entra a /portal con su teléfono y el folio que recibió al pagar, y
+-- carga la documentación de su asunto (citatorio, demanda, nómina…).
+--
+-- El contenido vive en la BASE DE DATOS y no en disco: el contenedor corre como
+-- usuario sin privilegios, no tiene directorio escribible y no hay volumen
+-- montado, así que cualquier archivo en disco desaparecería en el despliegue.
+--
+-- REGLA DE USO: la columna `contenido` NUNCA se incluye en un `select *`. Solo
+-- la lee la ruta de descarga, por id. Postgres la guarda fuera de línea
+-- (TOAST), de modo que listar cientos de documentos no mueve un solo byte.
+--
+-- El cruce con el cliente es por los 10 últimos dígitos del teléfono, igual que
+-- en contactos y en tiene_cita_agendada: una persona puede tener varias citas y
+-- los documentos son de la persona, no de una cita concreta.
+-- ===========================================================================
+create table if not exists veritum.documentos (
+  id uuid primary key default gen_random_uuid(),
+
+  -- Clave canónica de la persona, siempre presente
+  telefono_normalizado text not null check (telefono_normalizado ~ '^[0-9]{10}$'),
+  -- Cita con la que entró al portal. Si la cita se borra el documento
+  -- permanece: sigue siendo del cliente.
+  appointment_id uuid references veritum.appointments (id) on delete set null,
+  folio text,
+
+  nombre_archivo text not null check (length(nombre_archivo) between 1 and 160),
+  extension text not null,
+  mime text not null,
+  -- El tope de 15 MB se garantiza también aquí, no solo en la aplicación.
+  tamano_bytes integer not null check (tamano_bytes > 0 and tamano_bytes <= 15728640),
+  sha256 text not null check (sha256 ~ '^[0-9a-f]{64}$'),
+  contenido bytea not null,
+
+  subido_por text not null default 'cliente' check (subido_por in ('cliente', 'despacho')),
+  etiqueta text,
+  notas text,
+  -- Borrado suave: un documento de un expediente no se destruye sin dejar rastro.
+  eliminado_at timestamptz,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists documentos_cliente_idx
+  on veritum.documentos (telefono_normalizado, created_at desc)
+  where eliminado_at is null;
+create index if not exists documentos_folio_idx on veritum.documentos (folio);
+create index if not exists documentos_created_at_idx on veritum.documentos (created_at desc);
+
+drop trigger if exists documentos_updated_at on veritum.documentos;
+create trigger documentos_updated_at
+  before update on veritum.documentos
+  for each row execute function veritum.set_updated_at();
+
 -- ---------------------------------------------------------------------------
 -- Permisos: la API solo necesita entrar al esquema; RLS bloquea el resto.
 -- ---------------------------------------------------------------------------
@@ -604,6 +729,7 @@ alter table veritum.page_events enable row level security;
 alter table veritum.stripe_events enable row level security;
 alter table veritum.contactos enable row level security;
 alter table veritum.recordatorios enable row level security;
+alter table veritum.documentos enable row level security;
 
 -- ---------------------------------------------------------------------------
 -- Disponibilidad inicial de ejemplo (lunes a viernes, 10:00–14:00 y 16:00–18:00

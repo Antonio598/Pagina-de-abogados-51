@@ -1,22 +1,21 @@
 // Reserva de horario + creación del cobro en Stripe.
 //
-// Flujo: validar → comprobar que el horario sigue ofertable → reservar de forma
-// atómica en Postgres (retención de 20 min) → crear la Checkout Session con el
-// folio dentro → devolver la URL de pago. La cita NO queda confirmada aquí:
-// la confirma el webhook cuando Stripe avisa que el pago se completó.
+// Flujo: validar → comprobar que el horario sigue ofertable PARA ESE SERVICIO →
+// reservar de forma atómica en Postgres (retención de 20 min) → crear la
+// Checkout Session con el folio dentro → devolver la URL de pago. La cita NO
+// queda confirmada aquí: la confirma el webhook cuando Stripe avisa que el pago
+// se completó.
 //
-// El precio lo decide el servidor a partir de la cookie firmada de promoción;
-// cualquier importe que mande el navegador se ignora.
+// El precio lo decide el servidor a partir del id de servicio y del catálogo de
+// content/productos.ts. Cualquier importe que mande el navegador se ignora.
 
-import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
-import { HOLD_MINUTES, SLOT_MINUTES, isSlotOffered, nuevoFolio } from "@/lib/booking";
+import { HOLD_MINUTES, isSlotOffered, nuevoFolio } from "@/lib/booking";
 import { db, dbReady, fn, t, type Appointment } from "@/lib/db";
-import { cobroConfigurado, precioVigente, stripePriceId } from "@/lib/pricing";
-import { PROMO_COOKIE, promoStateFrom, readPromo } from "@/lib/promo";
-import { promoConfigurada } from "@/lib/pricing";
+import { cobroDisponible, precioDe, stripePriceId } from "@/lib/pricing";
 import { stripe, stripeReady } from "@/lib/stripe";
 import { reservaSchema } from "@/lib/validation";
+import { creditoVigenciaDias } from "@content/productos";
 import { site } from "@content/site";
 
 /** Todas las asesorías son por videollamada: no se acepta otra modalidad del cliente. */
@@ -46,8 +45,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Demasiadas solicitudes. Inténtalo más tarde." }, { status: 429 });
   }
 
-  if (!dbReady || !stripeReady() || !cobroConfigurado) {
-    console.error("[reservas] Falta configuración: base de datos, Stripe o el precio de la asesoría.");
+  if (!dbReady || !stripeReady() || !cobroDisponible()) {
+    console.error("[reservas] Falta configuración: base de datos o Stripe.");
     return NextResponse.json(
       { ok: false, error: "La reserva en línea no está disponible en este momento. Escríbenos por los canales de contacto." },
       { status: 503 },
@@ -78,22 +77,29 @@ export async function POST(req: NextRequest) {
 
   const data = parsed.data;
 
-  // El horario debe seguir siendo ofertable (no pasado, no bloqueado, no ocupado).
-  if (!(await isSlotOffered(data.slot))) {
+  // Precio y anticipación: los decide el catálogo, nunca el cliente.
+  const precio = precioDe(data.producto);
+  const producto = precio.producto;
+
+  // El horario debe seguir siendo ofertable para ESTE servicio: el prioritario
+  // exige 48 h de anticipación, así que un horario válido para la asesoría
+  // puede no serlo para él.
+  if (!(await isSlotOffered(data.slot, producto.leadMinutos))) {
     return NextResponse.json(
-      { ok: false, error: "Ese horario ya no está disponible. Elige otro, por favor.", campo: "slot" },
+      {
+        ok: false,
+        error:
+          producto.leadMinutos > 24 * 60
+            ? "Ese horario ya no está disponible para este servicio. Recuerda que se agenda con al menos 48 horas de anticipación."
+            : "Ese horario ya no está disponible. Elige otro, por favor.",
+        campo: "slot",
+      },
       { status: 409 },
     );
   }
 
-  // Precio: decidido aquí, nunca por el cliente.
-  const promoStart = await readPromo((await cookies()).get(PROMO_COOKIE)?.value);
-  const promo = promoStateFrom(promoStart, promoConfigurada);
-  const precio = precioVigente(promo.active);
-  const priceId = stripePriceId(precio.conDescuento);
-
   const slotStart = new Date(data.slot);
-  const slotEnd = new Date(slotStart.getTime() + SLOT_MINUTES * 60_000);
+  const slotEnd = new Date(slotStart.getTime() + producto.duracionMinutos * 60_000);
   const folio = nuevoFolio();
 
   // Reserva atómica: la función de Postgres expira los holds vencidos e inserta
@@ -107,8 +113,9 @@ export async function POST(req: NextRequest) {
         ${data.nombre}, ${data.correo}, ${data.telefono}, ${data.asunto},
         ${MODALIDAD}, ${data.entidad || null}, ${data.municipio || null},
         ${data.descripcion || null}, ${data.urgente || null}, ${null},
-        ${precio.centavos}, ${precio.moneda}, ${precio.conDescuento},
-        ${process.env.PRIVACY_NOTICE_VERSION ?? "pendiente"}, ${sql.json(data.utm ?? {})}
+        ${precio.centavos}, ${precio.moneda}, ${false},
+        ${process.env.PRIVACY_NOTICE_VERSION ?? "pendiente"}, ${sql.json(data.utm ?? {})},
+        ${producto.id}, ${data.situacion ?? null}, ${creditoVigenciaDias}
       )`;
     if (!fila?.id) {
       return NextResponse.json(
@@ -123,6 +130,7 @@ export async function POST(req: NextRequest) {
   }
 
   const volverA = data.origen === "landing" ? "/consulta/agendar" : "/agenda";
+  const priceId = stripePriceId(producto);
 
   try {
     const session = await stripe().checkout.sessions.create({
@@ -141,8 +149,8 @@ export async function POST(req: NextRequest) {
                 currency: precio.moneda.toLowerCase(),
                 unit_amount: precio.centavos,
                 product_data: {
-                  name: "Asesoría legal inicial · VERITUM",
-                  description: `Sesión de ${SLOT_MINUTES} minutos. Folio ${cita.folio}.`,
+                  name: `${producto.nombre} · VERITUM`,
+                  description: `Sesión de hasta ${producto.duracionMinutos} minutos. Folio ${cita.folio}.`,
                 },
               },
             },
@@ -151,11 +159,12 @@ export async function POST(req: NextRequest) {
         appointment_id: cita.id,
         folio: cita.folio,
         origen: cita.origen,
+        producto: producto.id,
+        situacion: data.situacion ?? "",
         slot_start: cita.slot_start.toISOString(),
-        promo: String(precio.conDescuento),
       },
       payment_intent_data: {
-        metadata: { appointment_id: cita.id, folio: cita.folio },
+        metadata: { appointment_id: cita.id, folio: cita.folio, producto: producto.id },
       },
       success_url: `${siteUrl()}/consulta/confirmacion?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl()}${volverA}?pago=cancelado&folio=${cita.folio}`,

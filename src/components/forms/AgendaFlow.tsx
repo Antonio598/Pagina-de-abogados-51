@@ -10,13 +10,17 @@ import { agenda, contactForm as cf } from "@content/contact";
 import { Button } from "@/components/ui/Button";
 import { DrawLine } from "@/components/motion/Reveal";
 import { Checkbox } from "./Field";
-import { BookingForm, type PrecioVista } from "./BookingForm";
+import { BookingForm } from "./BookingForm";
+import type { ProductoVista } from "@/lib/productos-vista";
+import type { ProductoId } from "@content/productos";
 import { cn } from "@/lib/utils";
 
 type Props = {
   defaultAsunto?: string;
-  precio: PrecioVista;
-  duracionMinutos: number;
+  productos: ProductoVista[];
+  productoInicial: ProductoId;
+  /** El sitio vende un solo servicio: el selector solo aparece si se pide. */
+  mostrarSelector?: boolean;
   cobroDisponible: boolean;
   cancelado?: boolean;
 };
@@ -41,7 +45,14 @@ const Pasos = ({ actual }: { actual: number }) => (
   </ol>
 );
 
-export const AgendaFlow = ({ defaultAsunto, precio, duracionMinutos, cobroDisponible, cancelado }: Props) => {
+export const AgendaFlow = ({
+  defaultAsunto,
+  productos,
+  productoInicial,
+  mostrarSelector,
+  cobroDisponible,
+  cancelado,
+}: Props) => {
   const [ack, setAck] = useState(false);
   const [paso, setPaso] = useState<0 | 1>(0);
 
@@ -72,7 +83,14 @@ export const AgendaFlow = ({ defaultAsunto, precio, duracionMinutos, cobroDispon
 
       {paso === 1 &&
         (cobroDisponible ? (
-          <BookingForm origen="sitio" precio={precio} defaultAsunto={defaultAsunto} duracionMinutos={duracionMinutos} className="anim-rise [animation-duration:300ms]" />
+          <BookingForm
+            origen="sitio"
+            productos={productos}
+            productoInicial={productoInicial}
+            mostrarSelector={mostrarSelector}
+            defaultAsunto={defaultAsunto}
+            className="anim-rise [animation-duration:300ms]"
+          />
         ) : (
           <p className="text-carbon/85">{cf.errorText}</p>
         ))}

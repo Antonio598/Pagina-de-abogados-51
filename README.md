@@ -137,10 +137,9 @@ La aplicación se conecta **directo a Postgres**, no por la API REST de Supabase
 > **Cifrado.** Si la base de datos vive en el mismo servidor de EasyPanel, usa el **nombre interno del servicio** en `DATABASE_URL` (por ejemplo `proyecto_supabase-db:5432`): el tráfico no sale a internet. Si va por internet, usa `sslmode=require`; con `sslmode=disable` los nombres, teléfonos y descripciones de los casos viajan sin cifrar.
 
 **2) Stripe**
-1. Crea el producto "Asesoría legal inicial" con dos precios: normal y promocional.
-2. Copia `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID` y `STRIPE_PRICE_PROMO_ID`.
-3. Crea el webhook apuntando a `https://<tu-dominio>/api/stripe/webhook` con los eventos `checkout.session.completed`, `checkout.session.expired`, `checkout.session.async_payment_succeeded` y `checkout.session.async_payment_failed`. Copia `STRIPE_WEBHOOK_SECRET`.
-4. Escribe los mismos importes **en centavos** en `NEXT_PUBLIC_PRECIO_NORMAL` y `NEXT_PUBLIC_PRECIO_PROMO` (son los que se muestran en pantalla).
+1. Copia `STRIPE_SECRET_KEY`.
+2. Crea el webhook apuntando a `https://<tu-dominio>/api/stripe/webhook` con los eventos `checkout.session.completed`, `checkout.session.expired`, `checkout.session.async_payment_succeeded` y `checkout.session.async_payment_failed`. Copia `STRIPE_WEBHOOK_SECRET`.
+3. **No hace falta crear productos ni precios en Stripe**: el importe se manda en cada cobro desde [content/productos.ts](content/productos.ts), que es la fuente de verdad (ver 8.7). Si prefieres gestionarlos en Stripe, crea un precio por servicio y pon sus ids en `STRIPE_PRICE_ASESORIA_ID` y `STRIPE_PRICE_REVISION_ID`.
 
 Pruebas locales del cobro:
 ```bash
@@ -166,15 +165,17 @@ Entra a `/panel/disponibilidad` y define las franjas por día de la semana. El e
 
 Todas las asesorías son por **videollamada**, en **todo México**. No hay modalidad presencial: el formulario ya no la pregunta y el servidor la fija (`site.modalidad`). El correo de confirmación incluye el enlace de la sesión.
 
-### 8.3 El descuento por tiempo limitado
+### 8.3 Escasez real de horarios
 
-Es un descuento **real**, no un adorno: el reloj (10 minutos, `NEXT_PUBLIC_PROMO_MINUTOS`) empieza en la primera visita a `/consulta`, se guarda firmado en una cookie httpOnly y, al expirar, Stripe cobra el precio normal. El precio se decide siempre en el servidor ([src/app/api/reservas/route.ts](src/app/api/reservas/route.ts)), así que modificarlo desde el navegador no tiene efecto. Para apagarlo por completo, deja vacío `NEXT_PUBLIC_PRECIO_PROMO`.
+El bloque «Quedan N horarios esta semana» de la landing sale de la agenda de
+verdad (`getCupoSemana()` en [src/lib/booking.ts](src/lib/booking.ts)): cuenta
+los huecos libres de los próximos 7 días y se actualiza solo. No hay ningún
+número inventado ni ninguna cuenta atrás; el descuento por tiempo limitado se
+retiró (ver 8.7).
 
-### 8.3 bis Escasez real y ventana de salida
-
-El aviso "Quedan N horarios esta semana" sale de `getCupoSemana()` en [src/lib/booking.ts](src/lib/booking.ts): cuenta los huecos libres reales de los próximos 7 días. Si la agenda se llena, el bloque desaparece en lugar de inventar cupo.
-
-La ventana al intentar salir ([ExitIntent.tsx](src/components/landing/ExitIntent.tsx)) aparece **una sola vez por sesión**, solo en `/consulta`, nunca en el formulario ni tras pagar, y se cierra con Esc, con clic fuera o con su botón.
+La ventana al intentar salir es de **ayuda, no de retención**: sin precio, sin
+reloj y sin cupo. Solo ofrece el asistente y la sección de cómo trabajamos, para
+quien prefiere preguntar antes de pagar.
 
 ### 8.4 Métricas del panel
 
@@ -247,3 +248,114 @@ Puesta en marcha:
    No son `NEXT_PUBLIC_*`: basta reiniciar, no hay que reconstruir la imagen.
 3. En n8n: una credencial *Header Auth*, un nodo *HTTP Request* al final de cada
    rama que hable con la persona, y el flujo aparte con el nodo *Schedule*.
+
+### 8.7 Defensa laboral para patrones: dos servicios y el crédito
+
+La landing de campaña (`/consulta`) está dedicada **exclusivamente a defensa
+laboral para patrones**. No es una landing para trabajadores ni de servicios
+generales: la comunicación se concentra en tres situaciones (citatorio de
+conciliación, demanda o notificación, y terminación o negociación de salida).
+
+**Los importes NO son variables de entorno.** Viven en
+[content/productos.ts](content/productos.ts): `$1,990` la asesoría y `$3,490` la
+revisión prioritaria. La razón es concreta: las `NEXT_PUBLIC_*` se congelan en el
+build y el `Dockerfile` no declaraba `ARG NEXT_PUBLIC_PRECIO_NORMAL`, así que en
+la imagen desplegada el precio quedaba vacío, la landing no mostraba importe,
+`/consulta/agendar` no mostraba formulario y `/api/reservas` respondía 503 —
+aunque la variable estuviera puesta en EasyPanel. Un literal en `content/` se ve
+en el diff; una variable ausente no se nota hasta que un cliente no puede pagar.
+
+| Servicio | Importe | Anticipación | Documentación |
+| --- | --- | --- | --- |
+| Asesoría laboral para patrones | $1,990 | 2 h | opcional |
+| Revisión laboral prioritaria | $3,490 | **48 h** | necesaria, por el portal |
+
+Las 48 horas del servicio prioritario no son un aviso, son el calendario: los
+horarios más cercanos **no se ofrecen**, porque la revisión documental no puede
+existir sin tiempo para revisar. `getAvailability` e `isSlotOffered` reciben la
+anticipación del producto, y el servidor vuelve a comprobarla al reservar.
+
+**El crédito de representación** es el argumento comercial central: si el cliente
+contrata a VERITUM para el mismo asunto y el despacho acepta la representación, se
+descuenta el 100 % de lo pagado por la asesoría. El modelo de datos es mínimo a
+propósito: el importe pagado (`precio_centavos`) **ya es** el crédito, así que solo
+se guarda lo que la base no puede deducir — `credito_vence_at` (se fija al pagar,
+para que un cambio futuro de política no caduque créditos ya vendidos),
+`credito_aplicado_at` y `credito_asunto`. Se marca como aplicado desde el detalle
+de la cita en `/panel/citas`, y un `check` de la base impide marcarlo sin decir a
+qué asunto.
+
+El texto del crédito para pegar en el bot de n8n está en `/panel/api`, generado
+desde el mismo `content/productos.ts`: cuando cambie un precio o una condición, el
+texto del bot cambia en el mismo despliegue.
+
+**Se retiró el reloj de 10 minutos** con su descuento por tiempo limitado y el
+precio tachado: contradecía el requisito de no usar urgencia artificial. Se
+borraron `src/lib/promo.ts`, `src/lib/promo-server.ts` y `PromoBar.tsx`. Las
+columnas `promo_aplicada` y `precio_centavos` se conservan por las filas
+históricas. El bloque «Quedan N horarios esta semana» **sí se mantiene**: ese dato
+sale de la agenda real (`getCupoSemana()`), no es escasez inventada.
+
+### 8.8 Portal del cliente
+
+`/portal` — el cliente entra con su **teléfono y el folio** que recibió al pagar, y
+carga la documentación de su asunto. Dos datos que él tiene y un extraño no: el
+folio da 32⁶ ≈ 1.07 mil millones de combinaciones y además hay que acertar el
+teléfono del titular. El acceso está limitado a 5 intentos por IP cada 15 minutos,
+con un freno global de 60 fallos en 10 minutos.
+
+Los tres fallos posibles (folio inexistente, teléfono equivocado, folio mal
+formado) devuelven **el mismo mensaje** y tardan lo mismo, con un suelo de 300 ms:
+si no, se podrían enumerar folios válidos.
+
+**Los archivos se guardan en PostgreSQL** (`veritum.documentos`, columna `bytea`),
+no en disco: el contenedor corre como usuario sin privilegios, no tiene
+directorio escribible y no hay volumen montado, así que cualquier archivo en disco
+desaparecería en el siguiente despliegue. La columna `contenido` nunca entra en un
+`select *` — solo la lee la ruta de descarga, por id.
+
+Límites y comprobaciones de la carga: 15 MB por archivo, 3 por envío, 20 por
+cliente; lista blanca por extensión (PDF, JPG, PNG, WEBP, HEIC, DOCX, XLSX); el
+tipo que declara el navegador **se ignora** y se comprueba la **firma real del
+archivo**, que es lo que atrapa un HTML renombrado a `.pdf`. Todo se sirve con
+`Content-Type: application/octet-stream`, `Content-Disposition: attachment` y
+`nosniff`, para que nada pueda ejecutarse en el origen del sitio.
+
+La carga usa un Route Handler y no una Server Action: las Server Actions están
+topadas en 1 MB, y subir ese tope lo elevaría para todas las acciones de la
+aplicación, incluidas las del panel. El formulario funciona **sin JavaScript**.
+
+`/panel/archivos` muestra los documentos agrupados por cliente, con búsqueda por
+teléfono, folio o nombre, y descarga autenticada por `/api/panel/documentos/[id]`.
+Los documentos del cliente también aparecen en el detalle de su cita.
+
+El cliente llega al portal por tres caminos: la página de confirmación del pago,
+el correo de confirmación y un enlace en el pie de la landing.
+
+### 8.9 Pendientes de esta fase
+
+- [ ] **`DATABASE_URL` con el hostname interno de EasyPanel.** Hoy usa
+      `sslmode=disable` por internet público. Ya viajaban nombres y teléfonos; con
+      el portal viajarían **demandas, citatorios y nóminas sin cifrar**. Deja de
+      ser una recomendación: es bloqueante.
+- [ ] **Texto de los tres documentos legales** ([content/legal.ts](content/legal.ts)).
+      La landing dice «conforme a las condiciones de contratación» y esa página
+      está vacía: es una promesa económica que apunta a la nada. Se añadieron las
+      secciones que faltaban (documentos del portal, condiciones del crédito,
+      alcance patronal, revisión prioritaria), pero siguen sin cuerpo.
+- [ ] `PORTAL_SESSION_SECRET` y `BOOKING_SLOT_MINUTES=60` en EasyPanel.
+- [ ] Stripe: `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET`. Sin ellos no se puede
+      cobrar ni probar el flujo completo de pago.
+- [ ] `MEETING_URL`: sala fija de videollamada, como respaldo del enlace por cita.
+- [ ] **Equipo de defensa laboral** — [content/equipo.ts](content/equipo.ts) está
+      **vacío a propósito**. Para encender la sección hacen falta, por cada
+      abogado: fotografía real (no de banco) en `public/equipo/`, nombre completo,
+      cargo, cédula profesional y la institución que la expidió, áreas y síntesis
+      curricular. Mientras esté vacío se muestra un compromiso que **sí es
+      verificable** (se envía el nombre y la cédula antes de la sesión). **No
+      inventar perfiles.**
+- [ ] Aprobar los textos nuevos de [content/landing.ts](content/landing.ts),
+      [content/productos.ts](content/productos.ts) y
+      [content/portal.ts](content/portal.ts).
+- [ ] Confirmar la vigencia del crédito (`CREDITO_VIGENCIA_DIAS`, hoy 90 días).
+- [ ] Video de la landing (`NEXT_PUBLIC_LANDING_VIDEO`): el bloque no aparece sin él.

@@ -12,6 +12,8 @@ import {
   ultimosRecordatorios,
   webhookUrl,
 } from "@/lib/seguimiento";
+import { creditoRepresentacion, productos, situaciones } from "@content/productos";
+import { formatMoney } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -94,6 +96,36 @@ export default async function ApiPage() {
     ultimosContactos(20),
     ultimosRecordatorios(20),
   ]);
+
+  // Un solo lugar del que salen los importes y las condiciones que dice el bot.
+  const textoBot = [
+    "SERVICIOS DE DEFENSA LABORAL PARA PATRONES",
+    "",
+    ...productos.flatMap((p) => [
+      `${p.nombre.toUpperCase()}: ${formatMoney(p.precioCentavos)} MXN`,
+      p.resumen,
+      ...(p.aviso ? [`Aviso: ${p.aviso}`] : []),
+      "",
+    ]),
+    creditoRepresentacion.titulo.toUpperCase(),
+    creditoRepresentacion.texto,
+    "",
+    "Ejemplo:",
+    `  Asesoría: ${formatMoney(creditoRepresentacion.ejemplo.asesoriaCentavos)}`,
+    `  Honorarios de representación: ${formatMoney(creditoRepresentacion.ejemplo.honorariosCentavos)}`,
+    `  Importe a descontar: ${formatMoney(creditoRepresentacion.ejemplo.asesoriaCentavos)}`,
+    `  Saldo de honorarios: ${formatMoney(creditoRepresentacion.ejemplo.saldoCentavos)}`,
+    `  ${creditoRepresentacion.ejemplo.nota}`,
+    "",
+    "Condiciones:",
+    ...creditoRepresentacion.condiciones.map((c) => `  - ${c}`),
+    "",
+    "LAS TRES SITUACIONES QUE ATENDEMOS",
+    ...situaciones.map((s) => `  - ${s.titulo}`),
+    "",
+    "Atendemos SOLO del lado del patrón. No representamos a trabajadores.",
+    "No prometemos resultados: la asesoría sirve para saber qué se reclama y qué opciones hay.",
+  ].join("\n");
 
   const ejemploContacto = `curl -X POST ${url}/api/seguimientos/contacto \\
   -H "Authorization: Bearer TU_TOKEN" \\
@@ -356,6 +388,14 @@ export default async function ApiPage() {
             de la aplicación: reiniciar o desplegar el sitio no pierde ningún recordatorio.
           </span>
         </p>
+      </Seccion>
+
+      <Seccion titulo="Texto de los servicios y del crédito (para el bot)">
+        <p className="mt-3 text-[0.95rem] text-carbon/85">
+          Pega esto en el nodo de n8n que ofrece la asesoría. Sale de la misma fuente que la landing, el formulario y el
+          correo de confirmación: si cambia un precio o una condición, este texto cambia en el mismo despliegue.
+        </p>
+        <Codigo>{textoBot}</Codigo>
       </Seccion>
 
       <Seccion titulo="Últimos contactos">

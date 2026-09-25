@@ -8,9 +8,9 @@ import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { Section } from "@/components/ui/Section";
 import { DrawLine, Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import { AgendaFlow } from "@/components/forms/AgendaFlow";
-import { SLOT_MINUTES } from "@/lib/booking";
-import { cobroConfigurado } from "@/lib/pricing";
-import { getPromo } from "@/lib/promo-server";
+import { cobroDisponible } from "@/lib/pricing";
+import { productoODefecto, productoPorId } from "@content/productos";
+import { productosVista, vistaDe } from "@/lib/productos-vista";
 import { Check } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -25,7 +25,13 @@ export default async function AgendaPage({ searchParams }: PageProps<"/agenda">)
   const sp = await searchParams;
   const tipo = typeof sp.tipo === "string" ? sp.tipo : undefined;
   const cancelado = sp.pago === "cancelado";
-  const { precio } = await getPromo();
+
+  // El sitio público vende la asesoría y no muestra el selector: la revisión
+  // prioritaria pertenece al embudo de defensa laboral, que es el trabajo de
+  // /consulta. Se honra ?producto= por si se enlaza desde un correo.
+  const pedido = typeof sp.producto === "string" ? productoPorId(sp.producto) : undefined;
+  const producto = pedido ?? productoODefecto(null);
+  const productos = pedido ? productosVista() : [vistaDe(producto)];
 
   return (
     <>
@@ -35,7 +41,13 @@ export default async function AgendaPage({ searchParams }: PageProps<"/agenda">)
       <Section tone="marfil" className="pt-4 md:pt-6 lg:pt-6">
         <div className="grid gap-10 lg:grid-cols-12 lg:gap-14">
           <Reveal className="lg:col-span-8">
-            <AgendaFlow defaultAsunto={tipo} precio={precio} duracionMinutos={SLOT_MINUTES} cobroDisponible={cobroConfigurado} cancelado={cancelado} />
+            <AgendaFlow
+              defaultAsunto={tipo}
+              productos={productos}
+              productoInicial={producto.id}
+              cobroDisponible={cobroDisponible()}
+              cancelado={cancelado}
+            />
           </Reveal>
           <aside className="lg:col-span-4">
             <div className="lg:sticky lg:top-28">

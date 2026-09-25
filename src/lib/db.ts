@@ -83,6 +83,16 @@ export type Appointment = {
   consentimiento_at: Date | null;
   utm: Record<string, string>;
   notas: string | null;
+  // Defensa laboral: servicio contratado y situación del patrón
+  producto_id: string | null;
+  situacion: string | null;
+  // Crédito de representación. El importe pagado ya es el crédito: aquí solo
+  // vive lo que la base no puede deducir.
+  credito_vence_at: Date | null;
+  credito_aplicado_at: Date | null;
+  credito_asunto: string | null;
+  credito_notas: string | null;
+  enlace_sesion: string | null;
   created_at: Date;
   updated_at: Date;
 };
@@ -153,3 +163,31 @@ export type Recordatorio = {
   created_at: Date;
   updated_at: Date;
 };
+
+/**
+ * Documento cargado por el cliente en el portal.
+ * NO incluye `contenido` a propósito: solo la ruta de descarga lo lee, por id.
+ * Dejarlo fuera del tipo hace imposible traer megabytes por accidente.
+ */
+export type Documento = {
+  id: string;
+  telefono_normalizado: string;
+  appointment_id: string | null;
+  folio: string | null;
+  nombre_archivo: string;
+  extension: string;
+  mime: string;
+  tamano_bytes: number;
+  sha256: string;
+  subido_por: "cliente" | "despacho";
+  etiqueta: string | null;
+  notas: string | null;
+  eliminado_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+};
+
+/** Columnas de `documentos` sin el contenido, para usar en los select. */
+export const COLS_DOCUMENTO =
+  "id, telefono_normalizado, appointment_id, folio, nombre_archivo, extension, mime, " +
+  "tamano_bytes, sha256, subido_por, etiqueta, notas, eliminado_at, created_at, updated_at";

@@ -1,53 +1,43 @@
-// Precio de la asesoría inicial. Precio único para todas las áreas.
-// Los importes se configuran en centavos por variable de entorno y deben
-// coincidir con los precios creados en Stripe.
+// Precios de los servicios de defensa laboral.
+//
+// Los importes viven en content/productos.ts, no en variables de entorno: una
+// NEXT_PUBLIC_* se congela en el build y el Dockerfile no las declara todas como
+// ARG, así que una variable ausente dejaba la landing sin precio y sin
+// posibilidad de reservar. Ver el comentario de cabecera de content/productos.ts.
+//
+// De entorno solo quedan los ids de precio de Stripe, que son opcionales.
 
-const cents = (v: string | undefined) => {
-  const n = Number((v ?? "").trim());
-  return Number.isFinite(n) && n > 0 ? Math.round(n) : undefined;
-};
+import { MONEDA, productoODefecto, type Producto } from "@content/productos";
 
-export const PRECIO_NORMAL = cents(process.env.NEXT_PUBLIC_PRECIO_NORMAL);
-export const PRECIO_PROMO = cents(process.env.NEXT_PUBLIC_PRECIO_PROMO);
-export const MONEDA = (process.env.NEXT_PUBLIC_MONEDA?.trim() || "MXN").toUpperCase();
+export { MONEDA };
 
-/** Hay cobro configurado: sin esto, el flujo de reserva no se ofrece. */
-export const cobroConfigurado = PRECIO_NORMAL !== undefined;
+export const formatMoney = (centavos: number, moneda: string = MONEDA) =>
+  new Intl.NumberFormat("es-MX", { style: "currency", currency: moneda, minimumFractionDigits: 0 }).format(
+    centavos / 100,
+  );
 
-/** Hay promoción configurada (precio menor al normal). */
-export const promoConfigurada =
-  PRECIO_NORMAL !== undefined && PRECIO_PROMO !== undefined && PRECIO_PROMO < PRECIO_NORMAL;
+/**
+ * Hay cobro disponible. Antes dependía de una variable de entorno; ahora los
+ * importes son contenido versionado, así que el cobro está disponible siempre
+ * que exista el catálogo. Se conserva como función para no cambiar los cuatro
+ * lugares que la consultan.
+ */
+export const cobroDisponible = () => true;
 
-// Aviso en los registros del servidor: sin estas variables la landing sale sin
-// precio, sin contador y sin posibilidad de reservar. Es el olvido más fácil de
-// cometer al desplegar, así que se anuncia en voz alta al arrancar.
-if (typeof window === "undefined") {
-  if (PRECIO_NORMAL === undefined) {
-    console.warn(
-      "[VERITUM] Falta NEXT_PUBLIC_PRECIO_NORMAL (en centavos). Sin ella la landing no muestra precio ni permite reservar.",
-    );
-  } else if (!promoConfigurada) {
-    console.warn(
-      "[VERITUM] Falta NEXT_PUBLIC_PRECIO_PROMO (menor que el normal). Sin ella no aparece el contador de tiempo limitado.",
-    );
-  }
-}
+/** Id de precio de Stripe del producto, si se configuró uno. */
+export const stripePriceId = (producto: Producto): string | undefined =>
+  process.env[producto.stripePriceEnv]?.trim() || undefined;
 
-export const formatMoney = (centavos: number, moneda = MONEDA) =>
-  new Intl.NumberFormat("es-MX", { style: "currency", currency: moneda, minimumFractionDigits: 0 }).format(centavos / 100);
-
-/** Precio vigente según si la promoción sigue activa para este visitante. */
-export const precioVigente = (promoActiva: boolean) => {
-  const usarPromo = promoConfigurada && promoActiva;
+/**
+ * Precio que se va a cobrar. Lo decide SIEMPRE el servidor a partir del id de
+ * producto: cualquier importe que mande el navegador se ignora.
+ */
+export const precioDe = (productoId: string | undefined | null) => {
+  const producto = productoODefecto(productoId);
   return {
-    centavos: (usarPromo ? PRECIO_PROMO : PRECIO_NORMAL) ?? 0,
-    normalCentavos: PRECIO_NORMAL ?? 0,
-    conDescuento: Boolean(usarPromo),
-    ahorroCentavos: usarPromo ? (PRECIO_NORMAL ?? 0) - (PRECIO_PROMO ?? 0) : 0,
+    producto,
+    centavos: producto.precioCentavos,
     moneda: MONEDA,
+    etiqueta: formatMoney(producto.precioCentavos),
   };
 };
-
-/** Id del precio de Stripe correspondiente (servidor). */
-export const stripePriceId = (conDescuento: boolean) =>
-  (conDescuento ? process.env.STRIPE_PRICE_PROMO_ID : process.env.STRIPE_PRICE_ID)?.trim() || undefined;

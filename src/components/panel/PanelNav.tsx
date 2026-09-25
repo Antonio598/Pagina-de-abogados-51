@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, CalendarClock, CalendarDays, LogOut, Webhook } from "lucide-react";
+import { BarChart3, CalendarClock, CalendarDays, FolderOpen, LogOut, Webhook } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/panel/citas", label: "Citas", icon: CalendarDays },
   { href: "/panel/metricas", label: "Métricas", icon: BarChart3 },
   { href: "/panel/disponibilidad", label: "Horarios", icon: CalendarClock },
+  { href: "/panel/archivos", label: "Archivos", icon: FolderOpen },
   { href: "/panel/api", label: "API", icon: Webhook },
 ];
 

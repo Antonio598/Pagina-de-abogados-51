@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertCircle, ArrowLeft, Info } from "lucide-react";
 import { landing } from "@content/landing";
-import { SLOT_MINUTES } from "@/lib/booking";
-import { cobroConfigurado } from "@/lib/pricing";
-import { getPromo } from "@/lib/promo-server";
+import { productoODefecto, situaciones } from "@content/productos";
+import { cobroDisponible } from "@/lib/pricing";
+import { productosVista } from "@/lib/productos-vista";
 import { env } from "@/lib/env";
 import { BookingForm } from "@/components/forms/BookingForm";
 import { AgenteIaLink } from "@/components/landing/AgenteIaLink";
@@ -19,8 +19,13 @@ export const metadata: Metadata = {
 export default async function AgendarPage({ searchParams }: PageProps<"/consulta/agendar">) {
   const sp = await searchParams;
   const cancelado = sp.pago === "cancelado";
-  const tipo = typeof sp.tipo === "string" ? sp.tipo : undefined;
-  const { precio } = await getPromo();
+  // La landing enlaza cada situación con ?situacion=…, y de ahí se deduce el
+  // servicio sugerido; ?producto=… lo sobreescribe si viene explícito.
+  const situacionParam = typeof sp.situacion === "string" ? sp.situacion : undefined;
+  const situacion = situaciones.find((s) => s.id === situacionParam);
+  const productoParam = typeof sp.producto === "string" ? sp.producto : undefined;
+  const producto = productoODefecto(productoParam ?? situacion?.productoSugerido);
+  const productos = productosVista();
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -52,9 +57,15 @@ export default async function AgendarPage({ searchParams }: PageProps<"/consulta
         <p className="mt-3 text-[0.95rem] text-carbon/85">{landing.agendar.aviso}</p>
       </details>
 
-      {cobroConfigurado ? (
+      {cobroDisponible() ? (
         <div className="mt-8">
-          <BookingForm origen="landing" precio={precio} defaultAsunto={tipo} duracionMinutos={SLOT_MINUTES} />
+          <BookingForm
+            origen="landing"
+            productos={productos}
+            productoInicial={producto.id}
+            mostrarSelector
+            situacionInicial={situacion?.id}
+          />
         </div>
       ) : (
         <p className="mt-8 rounded-brand border border-gris bg-blanco p-5 text-carbon/85">

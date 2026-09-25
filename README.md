@@ -187,4 +187,58 @@ La ventana al intentar salir ([ExitIntent.tsx](src/components/landing/ExitIntent
 - [ ] Definir precio normal y promocional, y crearlos en Stripe.
 - [ ] Conectar el agente de IA.
 - [ ] Añadir al aviso de privacidad las secciones de reservas, Stripe y medición propia (ya están listadas en [content/legal.ts](content/legal.ts)).
+- [ ] Añadir al aviso de privacidad la transferencia de datos a n8n para el seguimiento automático (nombre y folio del cliente).
 - [ ] Probar el pago de extremo a extremo en producción con una tarjeta real de bajo importe y reembolsarla.
+
+### 8.6 Seguimiento automático con n8n
+
+La documentación completa, con ejemplos de `curl` listos para pegar y el estado en
+vivo de los contactos, está dentro del panel: **[/panel/api](http://localhost:3000/panel/api)**.
+Lo que sigue es el resumen.
+
+n8n avisa cada vez que habla con una persona; el sitio guarda esa hora y, si no
+se actualiza, manda un recordatorio al webhook de n8n a **1 h**, **3 h** y **24 h**
+de silencio. Cada recordatorio se manda **una sola vez por teléfono, de por vida**.
+
+| Método | Ruta | Para qué |
+| --- | --- | --- |
+| POST | `/api/seguimientos/contacto` | Registrar la última hora de contacto de un teléfono |
+| GET | `/api/seguimientos/contacto?telefono=…` | Consultar el estado de un teléfono |
+| POST o GET | `/api/seguimientos/ejecutar` | Ejecutar el barrido de recordatorios |
+
+Las tres exigen `Authorization: Bearer <SEGUIMIENTO_API_TOKEN>`.
+
+**El sitio no tiene reloj propio.** No hay cron y el contenedor se reinicia en cada
+despliegue, así que el vencimiento lo decide siempre la base de datos comparando
+contra `now()`. Lo único que hace falta desde fuera es que alguien llame al
+barrido: un flujo de n8n con nodo **Schedule cada 5 minutos** apuntando a
+`/api/seguimientos/ejecutar`. Ese flujo **no es opcional**: sin él los
+recordatorios solo salen cuando llega un contacto nuevo.
+
+Reglas que conviene tener claras:
+
+- Si la hora de contacto se actualiza, el reloj vuelve a cero y los recordatorios
+  que aún no se hayan mandado se recalculan desde la hora nueva. Los ya enviados
+  no se repiten nunca.
+- Si un recordatorio vence estando el sistema sin barrer, se marca como
+  `omitido`: ante 30 horas de silencio de golpe se manda el de 24 h y no los tres
+  seguidos. Los omitidos tampoco se mandan después.
+- Si el POST al webhook falla se reintenta 3 veces (a los 2 y a los 10 minutos).
+  El hueco del contacto queda cerrado desde el primer intento, así que un fallo
+  de red no puede provocar un envío doble.
+- El recordatorio lleva el nombre y el folio del cliente cuando el teléfono
+  coincide con una cita. El cruce usa los 10 últimos dígitos, así que funciona
+  aunque el teléfono esté escrito en otro formato.
+- Desde `/panel/api` se puede **reiniciar** manualmente los recordatorios de un
+  teléfono. Es manual a propósito: nada automático reactiva a nadie.
+
+Puesta en marcha:
+
+1. Volver a ejecutar [supabase/schema.sql](supabase/schema.sql) completo en el SQL
+   Editor de Supabase (es idempotente). Añade las tablas `contactos` y
+   `recordatorios` y sus dos funciones.
+2. En EasyPanel → Environment, definir `SEGUIMIENTO_API_TOKEN` y
+   `SEGUIMIENTO_WEBHOOK_URL` (y `SEGUIMIENTO_WEBHOOK_SECRET`, recomendado).
+   No son `NEXT_PUBLIC_*`: basta reiniciar, no hay que reconstruir la imagen.
+3. En n8n: una credencial *Header Auth*, un nodo *HTTP Request* al final de cada
+   rama que hable con la persona, y el flujo aparte con el nodo *Schedule*.

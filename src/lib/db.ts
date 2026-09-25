@@ -117,3 +117,39 @@ export type PageEvent = {
   duracion_ms: number | null;
   created_at: Date;
 };
+
+export type RecordatorioEstado = "pendiente" | "enviado" | "fallido" | "omitido";
+
+export type Contacto = {
+  id: string;
+  telefono_normalizado: string;
+  telefono: string;
+  ultimo_contacto: Date;
+  recordatorio_1_at: Date | null;
+  recordatorio_2_at: Date | null;
+  recordatorio_3_at: Date | null;
+  recordatorios_resueltos: number;
+  datos: Record<string, unknown>;
+  contactos_recibidos: number;
+  created_at: Date;
+  updated_at: Date;
+};
+
+export type Recordatorio = {
+  id: number;
+  contacto_id: string;
+  telefono_normalizado: string;
+  numero: number;
+  estado: RecordatorioEstado;
+  ultimo_contacto: Date;
+  minutos_inactividad: number;
+  intentos: number;
+  reintentar_at: Date | null;
+  http_status: number | null;
+  error: string | null;
+  payload: Record<string, unknown> | null;
+  respuesta: string | null;
+  enviado_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+};

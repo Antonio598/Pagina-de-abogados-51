@@ -268,6 +268,284 @@ create trigger appointments_updated_at
   before update on veritum.appointments
   for each row execute function veritum.set_updated_at();
 
+-- ===========================================================================
+-- SEGUIMIENTO DE CONTACTOS (automatización con n8n)
+--
+-- n8n avisa cada vez que habla con una persona (POST /api/seguimientos/contacto)
+-- y aquí se guarda la hora. Si esa hora NO se actualiza, se manda un
+-- recordatorio al webhook de n8n a la hora, a las 3 horas y a las 24 horas.
+--
+-- REGLA CENTRAL: cada recordatorio se manda UNA SOLA VEZ por teléfono, para
+-- siempre. Las columnas recordatorio_N_at nunca vuelven a NULL: eso ES la
+-- garantía, no una deducción.
+--
+-- El vencimiento se calcula SIEMPRE comparando contra now() en la base de
+-- datos, nunca con temporizadores en memoria: la aplicación no tiene cron y el
+-- contenedor se reinicia en cada despliegue.
+-- ===========================================================================
+
+do $$ begin
+  create type veritum.recordatorio_estado as enum ('pendiente', 'enviado', 'fallido', 'omitido');
+exception when duplicate_object then null; end $$;
+
+-- ---------------------------------------------------------------------------
+-- Personas en seguimiento: un renglón por teléfono
+-- ---------------------------------------------------------------------------
+create table if not exists veritum.contactos (
+  id uuid primary key default gen_random_uuid(),
+
+  -- Clave de la persona: los 10 últimos dígitos del teléfono. Por construcción
+  -- descarta la lada de país (+52 / 52) y el 1 antiguo de los celulares.
+  telefono_normalizado text not null unique check (telefono_normalizado ~ '^[0-9]{10}$'),
+  -- El valor tal como lo mandó n8n, para poder responder por el mismo canal
+  telefono text not null,
+
+  -- Última hora de contacto: es el reloj de los recordatorios
+  ultimo_contacto timestamptz not null default now(),
+
+  -- Cuándo se resolvió cada recordatorio (enviado u omitido). NUNCA vuelve a NULL.
+  recordatorio_1_at timestamptz,
+  recordatorio_2_at timestamptz,
+  recordatorio_3_at timestamptz,
+  -- Cuántos de los 3 ya están resueltos. Se escribe en el mismo update que los
+  -- reclama, así que no puede desincronizarse de las columnas de arriba.
+  recordatorios_resueltos smallint not null default 0 check (recordatorios_resueltos between 0 and 3),
+
+  -- Lo que n8n quiera adjuntar (nombre en WhatsApp, id de conversación, etapa…)
+  datos jsonb not null default '{}'::jsonb,
+  contactos_recibidos integer not null default 1,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Hace rápida la pregunta "¿a quién le toca un recordatorio?": el índice solo
+-- contiene a quienes todavía tienen recordatorios pendientes.
+create index if not exists contactos_pendientes_idx
+  on veritum.contactos (ultimo_contacto)
+  where recordatorios_resueltos < 3;
+
+create index if not exists contactos_actualizados_idx on veritum.contactos (updated_at desc);
+
+-- ---------------------------------------------------------------------------
+-- Bitácora de recordatorios (y cola de reintentos)
+--
+-- Un renglón por (contacto, número). Es lo que se ve en /panel/api y lo que
+-- gobierna los reintentos cuando el POST al webhook falla.
+-- ---------------------------------------------------------------------------
+create table if not exists veritum.recordatorios (
+  id bigserial primary key,
+  contacto_id uuid not null references veritum.contactos (id) on delete cascade,
+  telefono_normalizado text not null,
+  numero smallint not null check (numero between 1 and 3),
+  estado veritum.recordatorio_estado not null default 'pendiente',
+
+  -- Con qué valores se decidió mandarlo (el contacto puede cambiar después)
+  ultimo_contacto timestamptz not null,
+  minutos_inactividad integer not null,
+
+  intentos smallint not null default 0,
+  -- Cuándo volver a intentar. NULL = no se reintenta (ya se envió o se agotó).
+  reintentar_at timestamptz,
+  http_status integer,
+  error text,
+  payload jsonb,
+  respuesta text,
+  enviado_at timestamptz,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  -- La garantía de "nunca dos veces", también a nivel de bitácora
+  unique (contacto_id, numero)
+);
+
+create index if not exists recordatorios_created_at_idx on veritum.recordatorios (created_at desc);
+create index if not exists recordatorios_reintento_idx
+  on veritum.recordatorios (reintentar_at)
+  where estado = 'fallido' and reintentar_at is not null;
+
+-- Para cruzar un teléfono normalizado con las citas, que lo guardan tal como lo
+-- escribió la persona. La expresión es inmutable, así que se puede indexar.
+create index if not exists appointments_telefono_norm_idx
+  on veritum.appointments (right(regexp_replace(telefono, '[^0-9]', '', 'g'), 10));
+
+-- ---------------------------------------------------------------------------
+-- Reclamo atómico de recordatorios
+--
+-- Devuelve los recordatorios que hay que mandar YA, dejándolos marcados como
+-- resueltos ANTES de la llamada HTTP. Dos barridos simultáneos no pueden
+-- reclamar el mismo: for update skip locked más las columnas ya escritas.
+--
+-- Elige el recordatorio MÁS ALTO ya vencido y marca como 'omitido' los menores
+-- vencidos y sin mandar: si el barrido estuvo caído 30 horas, la persona recibe
+-- el de 24 horas (el relevante) y no los tres seguidos.
+--
+-- Los nombres de salida llevan prefijo o_ a propósito: en plpgsql los
+-- parámetros de salida son variables y colisionarían con los nombres de columna
+-- dentro de las consultas.
+-- ---------------------------------------------------------------------------
+create or replace function veritum.reclamar_recordatorios(
+  p_min1 integer,
+  p_min2 integer,
+  p_min3 integer,
+  p_limite integer
+) returns table (
+  o_recordatorio_id bigint,
+  o_contacto_id uuid,
+  o_telefono text,
+  o_telefono_normalizado text,
+  o_numero smallint,
+  o_ultimo_contacto timestamptz,
+  o_minutos_inactividad integer,
+  o_omitidos smallint[]
+)
+language plpgsql
+security definer
+set search_path = veritum, public
+as $$
+declare
+  c record;
+  v_numero smallint;
+  v_omitidos smallint[];
+  v_minutos integer;
+  v_id bigint;
+  v_ahora timestamptz := now();
+begin
+  for c in
+    select x.id, x.telefono, x.telefono_normalizado, x.ultimo_contacto,
+           x.recordatorio_1_at, x.recordatorio_2_at, x.recordatorio_3_at
+      from veritum.contactos x
+     where x.recordatorios_resueltos < 3
+       and x.ultimo_contacto <= v_ahora - make_interval(mins => p_min1)
+     order by x.ultimo_contacto asc
+     limit greatest(1, p_limite)
+     for update skip locked
+  loop
+    v_numero := null;
+    v_omitidos := '{}'::smallint[];
+
+    if c.recordatorio_3_at is null and c.ultimo_contacto <= v_ahora - make_interval(mins => p_min3) then
+      v_numero := 3;
+    elsif c.recordatorio_2_at is null and c.ultimo_contacto <= v_ahora - make_interval(mins => p_min2) then
+      v_numero := 2;
+    elsif c.recordatorio_1_at is null and c.ultimo_contacto <= v_ahora - make_interval(mins => p_min1) then
+      v_numero := 1;
+    end if;
+
+    if v_numero is null then
+      continue;
+    end if;
+
+    -- Los menores que ya vencieron y nunca se mandaron se descartan: no se
+    -- avisa que hace una hora que no se habla cuando ya pasaron 30 horas.
+    if v_numero > 1 and c.recordatorio_1_at is null then
+      v_omitidos := v_omitidos || 1::smallint;
+    end if;
+    if v_numero > 2 and c.recordatorio_2_at is null then
+      v_omitidos := v_omitidos || 2::smallint;
+    end if;
+
+    v_minutos := floor(extract(epoch from (v_ahora - c.ultimo_contacto)) / 60)::integer;
+
+    update veritum.contactos w
+       set recordatorio_1_at = case when v_numero = 1 or 1 = any(v_omitidos) then v_ahora else w.recordatorio_1_at end,
+           recordatorio_2_at = case when v_numero = 2 or 2 = any(v_omitidos) then v_ahora else w.recordatorio_2_at end,
+           recordatorio_3_at = case when v_numero = 3                        then v_ahora else w.recordatorio_3_at end,
+           recordatorios_resueltos = w.recordatorios_resueltos + 1 + coalesce(cardinality(v_omitidos), 0),
+           updated_at = v_ahora
+     where w.id = c.id;
+
+    -- Bitácora de los descartados
+    if coalesce(cardinality(v_omitidos), 0) > 0 then
+      insert into veritum.recordatorios
+        (contacto_id, telefono_normalizado, numero, estado, ultimo_contacto, minutos_inactividad, reintentar_at)
+      select c.id, c.telefono_normalizado, u.n, 'omitido', c.ultimo_contacto, v_minutos, null
+        from unnest(v_omitidos) as u(n)
+      on conflict (contacto_id, numero) do nothing;
+    end if;
+
+    -- Bitácora del que sí se manda: queda 'pendiente' hasta saber el resultado.
+    -- v_id se limpia antes porque un on conflict do nothing que no inserta nada
+    -- deja la variable con su valor anterior.
+    v_id := null;
+    insert into veritum.recordatorios
+      (contacto_id, telefono_normalizado, numero, estado, ultimo_contacto, minutos_inactividad)
+    values
+      (c.id, c.telefono_normalizado, v_numero, 'pendiente', c.ultimo_contacto, v_minutos)
+    on conflict (contacto_id, numero) do nothing
+    returning id into v_id;
+
+    -- Ya existía: otro barrido lo tomó. No se manda nada.
+    if v_id is null then
+      continue;
+    end if;
+
+    return query select v_id, c.id, c.telefono, c.telefono_normalizado,
+                        v_numero, c.ultimo_contacto, v_minutos, v_omitidos;
+  end loop;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Reclamo de reintentos
+--
+-- Dos casos: el POST falló y todavía queda intento, o el proceso murió con el
+-- POST en vuelo y el renglón quedó 'pendiente' (huérfano).
+--
+-- Nunca se devuelve a NULL el recordatorio_N_at del contacto: el reintento se
+-- gobierna desde esta bitácora, no reabriendo el hueco. Así "nunca dos veces"
+-- sigue siendo cierto aunque la red falle.
+-- ---------------------------------------------------------------------------
+create or replace function veritum.reclamar_reintentos(
+  p_max_intentos integer,
+  p_huerfano_min integer,
+  p_limite integer
+) returns table (
+  o_recordatorio_id bigint,
+  o_contacto_id uuid,
+  o_telefono text,
+  o_telefono_normalizado text,
+  o_numero smallint,
+  o_ultimo_contacto timestamptz,
+  o_minutos_inactividad integer,
+  o_intentos smallint
+)
+language sql
+security definer
+set search_path = veritum, public
+as $$
+  update veritum.recordatorios r
+     set estado = 'pendiente', reintentar_at = null, updated_at = now()
+    from veritum.contactos c
+   where c.id = r.contacto_id
+     and r.id in (
+       select r2.id
+         from veritum.recordatorios r2
+        where (r2.estado = 'fallido'
+               and r2.intentos < p_max_intentos
+               and r2.reintentar_at is not null
+               and r2.reintentar_at <= now())
+           or (r2.estado = 'pendiente'
+               and r2.updated_at < now() - make_interval(mins => p_huerfano_min))
+        order by r2.created_at asc
+        limit greatest(1, p_limite)
+        for update skip locked
+     )
+  returning r.id, c.id, c.telefono, r.telefono_normalizado,
+            r.numero, r.ultimo_contacto, r.minutos_inactividad, r.intentos;
+$$;
+
+drop trigger if exists contactos_updated_at on veritum.contactos;
+create trigger contactos_updated_at
+  before update on veritum.contactos
+  for each row execute function veritum.set_updated_at();
+
+drop trigger if exists recordatorios_updated_at on veritum.recordatorios;
+create trigger recordatorios_updated_at
+  before update on veritum.recordatorios
+  for each row execute function veritum.set_updated_at();
+
 -- ---------------------------------------------------------------------------
 -- Permisos: la API solo necesita entrar al esquema; RLS bloquea el resto.
 -- ---------------------------------------------------------------------------
@@ -281,6 +559,8 @@ alter table veritum.availability_rules enable row level security;
 alter table veritum.availability_blocks enable row level security;
 alter table veritum.page_events enable row level security;
 alter table veritum.stripe_events enable row level security;
+alter table veritum.contactos enable row level security;
+alter table veritum.recordatorios enable row level security;
 
 -- ---------------------------------------------------------------------------
 -- Disponibilidad inicial de ejemplo (lunes a viernes, 10:00–14:00 y 16:00–18:00

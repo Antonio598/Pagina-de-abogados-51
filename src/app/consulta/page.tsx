@@ -15,6 +15,7 @@ import { AgenteIaLink } from "@/components/landing/AgenteIaLink";
 import { CountUp, ReadingProgress, SpotlightCard, TrazoIcono, WordReveal } from "@/components/landing/Efectos";
 import { EquipoBlock } from "@/components/landing/EquipoBlock";
 import { ExitIntent } from "@/components/landing/ExitIntent";
+import { RevelarSecciones } from "@/components/landing/RevelarSecciones";
 import { MagneticLink } from "@/components/landing/Magnetico";
 import { BarraFija } from "@/components/landing/BarraFija";
 import { TrackedLink } from "@/components/ui/TrackedLink";
@@ -48,6 +49,8 @@ export default async function LandingPage() {
   return (
     <>
       <ReadingProgress />
+      {/* Activa los [data-reveal] / [data-stagger] del marcado de esta página. */}
+      <RevelarSecciones />
       <ExitIntent agenteUrl={env.agenteIaUrl} />
 
       {/* Hero ---------------------------------------------------------- */}

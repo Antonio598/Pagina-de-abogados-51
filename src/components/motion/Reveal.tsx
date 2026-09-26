@@ -28,7 +28,11 @@ const observe = (el: Element, cb: () => void) => {
           }
         }
       },
-      { rootMargin: "0px 0px -8% 0px", threshold: 0.12 },
+      // threshold 0 y no 0.12: un bloque MÁS ALTO que la pantalla nunca llega a
+      // tener un 12 % visible a la vez, así que no se revelaba nunca y su texto
+      // se quedaba invisible. Pasa sobre todo en móvil, donde todo es más alto.
+      // El rootMargin sigue retrasando el disparo hasta el 92 % de la pantalla.
+      { rootMargin: "0px 0px -8% 0px", threshold: 0 },
     );
   }
   callbacks.set(el, cb);

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { contact } from "@content/contact";
 import { faqs } from "@content/faqs";
 import { seo } from "@content/seo";
@@ -34,10 +35,6 @@ export default async function ContactPage({ searchParams }: PageProps<"/contacto
 
       <Section tone="blanco" className="pt-10 md:pt-14 lg:pt-14">
         <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
-          <Reveal className="lg:col-span-7">
-            <ContactForm defaultAsunto={asunto} recurso={recurso} />
-          </Reveal>
-
           <aside className="lg:col-span-5">
             <div className="rounded-brand border border-gris bg-marfil p-7 md:p-8 lg:sticky lg:top-28">
               {hasContactData && (
@@ -64,10 +61,26 @@ export default async function ContactPage({ searchParams }: PageProps<"/contacto
               <h2 className={hasContactData || socialLinks.length > 0 ? "eyebrow mt-8" : "eyebrow"}>{contact.coverageLabel}</h2>
               <DrawLine className="my-5" />
               <p className="font-display text-[1.35rem] text-azul">{site.coverage}</p>
+              <div className="mt-8 rounded-brand border border-dorado/40 bg-blanco p-4">
+                <p className="text-[0.92rem] text-carbon/85">{contact.noEsAgenda}</p>
+                <Link href="/agenda" className="link-text mt-2 inline-flex min-h-10 items-center text-[0.92rem] font-medium">
+                  {contact.agendaCtaLabel}
+                </Link>
+              </div>
+
               <p className="mt-6 text-sm text-carbon/75">{site.legalNotice}</p>
             </div>
           </aside>
+
+          <Reveal className="lg:col-span-7">
+            <h2 className="font-display type-h3 text-azul">{contact.formTitle}</h2>
+            <p className="measure mt-3 text-carbon/85">{contact.formText}</p>
+            <div className="mt-8">
+              <ContactForm defaultAsunto={asunto} recurso={recurso} />
+            </div>
+          </Reveal>
         </div>
+
       </Section>
 
       <Section tone="marfil" id="preguntas-frecuentes">

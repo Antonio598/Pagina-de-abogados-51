@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Mail, MapPin, MessageCircle, Phone, Video } from "lucide-react";
+import { Clock, Mail, MapPin, MessageCircle, Phone, User, Video } from "lucide-react";
 import { contact } from "@content/contact";
 import { env, mailHref, telHref, whatsappHref } from "@/lib/env";
 import { track } from "@/lib/analytics";
@@ -13,10 +13,23 @@ export const ContactLinks = ({ inverse, className, section }: Props) => {
   const text = inverse ? "text-marfil/85" : "text-carbon";
   const label = inverse ? "text-marfil/55" : "text-carbon/70";
   const icon = cn("mt-1 size-[18px] shrink-0", inverse ? "text-dorado" : "text-dorado-2");
-  const link = cn("underline-offset-4 hover:underline", inverse ? "hover:text-blanco" : "hover:text-azul");
+  // inline-flex con min-h-10: son datos que se tocan con el dedo (llamar,
+  // escribir, abrir WhatsApp), así que necesitan altura suficiente.
+  const link = cn(
+    "inline-flex min-h-10 items-center underline-offset-4 hover:underline",
+    inverse ? "hover:text-blanco" : "hover:text-azul",
+  );
 
   const rows: { key: string; icon: React.ReactNode; label: string; value: React.ReactNode }[] = [];
 
+  if (env.contactoNombre) {
+    rows.push({
+      key: "resp",
+      icon: <User className={icon} strokeWidth={1.5} aria-hidden />,
+      label: contact.labels.responsable,
+      value: env.contactoNombre,
+    });
+  }
   if (env.telefono && telHref) {
     rows.push({
       key: "tel",

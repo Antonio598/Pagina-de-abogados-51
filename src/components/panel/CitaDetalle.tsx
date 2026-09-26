@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Download, FileText, X } from "lucide-react";
-import { formatDateTimeLong } from "@/lib/booking";
+import { formatDateOnly, formatDateTimeLong } from "@/lib/booking";
 import type { Appointment, Documento } from "@/lib/db";
 import { pesoLegible } from "@/lib/documentos";
 import { formatMoney } from "@/lib/pricing";
@@ -94,7 +94,9 @@ export const CitaDetalle = ({
           <Fila label="Área">{cita.area}</Fila>
           <Fila label="Modalidad">{cita.modalidad}</Fila>
           <Fila label="Ubicación">{[cita.municipio, cita.entidad].filter(Boolean).join(", ")}</Fila>
-          <Fila label="Fecha próxima relevante">{cita.fecha_proxima}</Fila>
+          <Fila label="Fecha próxima relevante">
+            {cita.fecha_proxima ? formatDateOnly(cita.fecha_proxima) : null}
+          </Fila>
           <Fila label="Lo que nos compartió">
             <span className="whitespace-pre-line">{cita.descripcion}</span>
           </Fila>

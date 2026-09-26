@@ -1,15 +1,15 @@
 // Recepción de formularios (contacto y agenda). Bloque 6.
 // - Validación en servidor con los mismos esquemas del cliente.
 // - Honeypot y límite de tasa por IP en memoria (suficiente para un solo contenedor).
-// - Envío por SMTP con nodemailer al correo autorizado de VERITUM.
+// - Envío por Resend (o SMTP como respaldo) al correo autorizado de VERITUM.
 // - Registro del consentimiento (fecha/hora, versión de aviso, IP con hash).
 // - Sin SMTP configurado responde 503: nunca simula un envío exitoso.
 // Los datos nunca se envían a plataformas de analítica ni de publicidad.
 
 import { createHash } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import nodemailer from "nodemailer";
 import { contactSchema } from "@/lib/validation";
+import { mailReady, sendMail } from "@/lib/mailer";
 
 export const runtime = "nodejs";
 
@@ -27,15 +27,8 @@ const rateLimited = (ip: string) => {
   return false;
 };
 
-const smtpReady = () => Boolean(process.env.SMTP_HOST && process.env.CONTACT_TO_EMAIL);
-
-const transporter = () =>
-  nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT ?? 587),
-    secure: process.env.SMTP_SECURE === "true",
-    auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
-  });
+// El transporte vive en src/lib/mailer.ts: Resend si hay clave, SMTP si no.
+const correoListo = () => mailReady();
 
 const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
 
@@ -74,7 +67,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Revisa los campos marcados.", fields }, { status: 422 });
   }
 
-  if (!smtpReady()) {
+  if (!correoListo()) {
     console.error("[contacto] SMTP no configurado: define SMTP_HOST y CONTACT_TO_EMAIL.");
     return NextResponse.json(
       { ok: false, error: "El envío no está disponible en este momento. Utiliza un canal de contacto directo." },
@@ -104,16 +97,15 @@ export async function POST(req: NextRequest) {
       <p style="font-size:12px;color:#777;margin-top:20px">Este correo contiene datos personales: trátalo conforme al aviso de privacidad y a la política de retención de VERITUM.</p>
     </div>`;
 
-  try {
-    await transporter().sendMail({
-      from: process.env.SMTP_FROM ?? process.env.SMTP_USER ?? process.env.CONTACT_TO_EMAIL,
-      to: process.env.CONTACT_TO_EMAIL,
-      replyTo: String(data.correo),
-      subject,
-      html,
-    });
-  } catch (err) {
-    console.error("[contacto] Error al enviar correo", { id, err });
+  // La clave de idempotencia evita duplicados si el navegador reenvía el POST.
+  const enviado = await sendMail({
+    subject,
+    html,
+    replyTo: String(data.correo),
+    idempotencyKey: `contacto-${id}`,
+  });
+  if (!enviado) {
+    console.error("[contacto] No se pudo enviar el correo", { id });
     return NextResponse.json({ ok: false, error: "No pudimos enviar tu solicitud. Inténtalo de nuevo." }, { status: 502 });
   }
 

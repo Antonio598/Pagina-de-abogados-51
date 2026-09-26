@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { db, dbReady, fn, t, type Contacto, type Recordatorio } from "./db";
+import { TZ } from "./booking";
 
 // Seguimiento de contactos con n8n.
 //
@@ -134,7 +135,10 @@ export type DatosCliente = {
   nombre: string;
   folio: string;
   status: string;
+  /** Instante en UTC. */
   slot_start: string;
+  /** El mismo horario en hora de Ciudad de México. */
+  slot_start_local: string;
 };
 
 export type PayloadRecordatorio = {
@@ -142,14 +146,33 @@ export type PayloadRecordatorio = {
   recordatorio: number;
   telefono: string;
   telefono_normalizado: string;
+  /** Instante exacto, en UTC con desfase: para comparar y calcular. */
   ultimo_contacto: string;
+  /** El mismo instante escrito en hora de Ciudad de México: para el mensaje. */
+  ultimo_contacto_local: string;
   minutos_inactividad: number;
   horas_inactividad: number;
   umbral_minutos: number;
   /** Datos de la cita si el teléfono coincide con una; null si no hay ninguna. */
   cliente: DatosCliente | null;
   enviado_at: string;
+  enviado_at_local: string;
+  /** Zona en la que están escritos los campos _local. */
+  zona: string;
 };
+
+/**
+ * Fecha y hora en la zona de trabajo (Ciudad de México), legible por una
+ * persona. El instante en UTC también viaja en el payload: n8n redacta con el
+ * campo local y calcula con el otro.
+ */
+export const enHoraLocal = (d: Date) =>
+  new Intl.DateTimeFormat("es-MX", {
+    timeZone: TZ,
+    dateStyle: "long",
+    timeStyle: "short",
+    hour12: false,
+  }).format(d);
 
 /** Busca la cita de ese teléfono para poder personalizar el mensaje en n8n. */
 const buscarCita = async (norm: string): Promise<DatosCliente | null> => {
@@ -161,7 +184,13 @@ const buscarCita = async (norm: string): Promise<DatosCliente | null> => {
      order by (status = 'pagada') desc, slot_start desc
      limit 1`;
   if (!fila) return null;
-  return { nombre: fila.nombre, folio: fila.folio, status: fila.status, slot_start: fila.slot_start.toISOString() };
+  return {
+    nombre: fila.nombre,
+    folio: fila.folio,
+    status: fila.status,
+    slot_start: fila.slot_start.toISOString(),
+    slot_start_local: enHoraLocal(fila.slot_start),
+  };
 };
 
 type ResultadoEnvio = { ok: boolean; status: number | null; error?: string; respuesta?: string };
@@ -225,17 +254,21 @@ const procesar = async (r: Reclamado): Promise<{ ok: boolean; status: number | n
     return null;
   });
 
+  const ahora = new Date();
   const payload: PayloadRecordatorio = {
     evento: "recordatorio_seguimiento",
     recordatorio: r.numero,
     telefono: r.telefono,
     telefono_normalizado: r.telefono_normalizado,
     ultimo_contacto: r.ultimo_contacto.toISOString(),
+    ultimo_contacto_local: enHoraLocal(r.ultimo_contacto),
     minutos_inactividad: r.minutos_inactividad,
     horas_inactividad: Math.round((r.minutos_inactividad / 60) * 10) / 10,
     umbral_minutos: umbral,
     cliente,
-    enviado_at: new Date().toISOString(),
+    enviado_at: ahora.toISOString(),
+    enviado_at_local: enHoraLocal(ahora),
+    zona: TZ,
   };
 
   const res = await enviarWebhook(payload);

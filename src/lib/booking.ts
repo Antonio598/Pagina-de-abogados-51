@@ -84,6 +84,10 @@ export const formatTime = (date: Date, tz = TZ) =>
 export const formatDateLong = (date: Date, tz = TZ) =>
   new Intl.DateTimeFormat("es-MX", { timeZone: tz, weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(date);
 
+/** Solo la fecha, en la zona de trabajo. Para columnas de tipo date. */
+export const formatDateOnly = (date: Date, tz = TZ) =>
+  new Intl.DateTimeFormat("es-MX", { timeZone: tz, dateStyle: "long" }).format(date);
+
 export const formatDateTimeLong = (date: Date, tz = TZ) =>
   `${formatDateLong(date, tz)}, ${formatTime(date, tz)} h`;
 

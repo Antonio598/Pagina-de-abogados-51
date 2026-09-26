@@ -71,7 +71,8 @@ export type Appointment = {
   entidad: string | null;
   municipio: string | null;
   descripcion: string | null;
-  fecha_proxima: string | null;
+  /** Columna de tipo date: el driver la devuelve como Date, no como texto. */
+  fecha_proxima: Date | null;
   canal: string | null;
   precio_centavos: number;
   moneda: string;

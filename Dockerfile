@@ -39,6 +39,7 @@ ARG NEXT_PUBLIC_GTM_ID
 # Estas faltaban: sin declararlas como ARG, Docker ignora el argumento de build
 # y la variable queda congelada como vacía en la imagen, aunque EasyPanel la
 # pase. Por eso los importes de los servicios se movieron a content/productos.ts.
+ARG NEXT_PUBLIC_CONTACTO_NOMBRE
 ARG NEXT_PUBLIC_AGENTE_IA_URL
 ARG NEXT_PUBLIC_LANDING_VIDEO
 ARG NEXT_PUBLIC_LANDING_VIDEO_POSTER

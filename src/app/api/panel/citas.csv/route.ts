@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
       c.entidad,
       c.municipio,
       c.descripcion,
-      c.fecha_proxima,
+      c.fecha_proxima ? c.fecha_proxima.toISOString().slice(0, 10) : null,
       c.origen,
       (c.precio_centavos / 100).toFixed(2),
       c.promo_aplicada ? "sí" : "no",

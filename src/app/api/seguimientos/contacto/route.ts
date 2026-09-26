@@ -11,9 +11,11 @@
 
 import { NextResponse, after, type NextRequest } from "next/server";
 import { z } from "zod";
+import { TZ, zonedToUtc } from "@/lib/booking";
 import { dbReady } from "@/lib/db";
 import {
   barrerEnSegundoPlano,
+  enHoraLocal,
   normalizarTelefono,
   obtenerContacto,
   registrarContacto,
@@ -42,8 +44,30 @@ const ipDe = (req: NextRequest) =>
 
 // Se aceptan alias porque n8n suele arrastrar el nombre del campo de origen.
 const telefonoCampo = z.string().trim().min(8).max(25);
-// Se exige desfase horario para no adivinar zonas: en n8n, {{ $now.toISO() }}.
-const fechaCampo = z.string().trim().datetime({ offset: true });
+// Con desfase (lo que manda {{ $now.toISO() }} de n8n) o sin él. Sin desfase se
+// interpreta como hora de Ciudad de México, que es la zona de trabajo: antes se
+// rechazaba, y obligaba a configurar n8n con cuidado para algo que aquí se puede
+// resolver sin ambigüedad.
+const SIN_DESFASE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?$/;
+
+const fechaCampo = z
+  .string()
+  .trim()
+  .refine((v) => SIN_DESFASE.test(v) || !Number.isNaN(Date.parse(v)), {
+    message: "Fecha no válida. Usa formato ISO, por ejemplo 2026-09-25T18:40:00-06:00.",
+  });
+
+/** Convierte lo que mandó n8n en un instante. Sin desfase = hora de CDMX. */
+const aInstante = (valor: string): Date | null => {
+  if (SIN_DESFASE.test(valor)) {
+    const [fecha, hora] = valor.replace(" ", "T").split("T");
+    const [y, m, d] = fecha.split("-").map(Number);
+    const [hh, mm] = hora.split(":").map(Number);
+    return zonedToUtc(y, m, d, hh, mm, TZ);
+  }
+  const d = new Date(valor);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
 
 const schema = z
   .object({
@@ -82,6 +106,8 @@ const publico = (c: {
   telefono: c.telefono,
   telefono_normalizado: c.telefono_normalizado,
   ultimo_contacto: c.ultimo_contacto.toISOString(),
+  ultimo_contacto_local: enHoraLocal(c.ultimo_contacto),
+  zona: TZ,
   recordatorios_resueltos: c.recordatorios_resueltos,
   recordatorio_1_at: c.recordatorio_1_at?.toISOString() ?? null,
   recordatorio_2_at: c.recordatorio_2_at?.toISOString() ?? null,
@@ -123,12 +149,19 @@ export async function POST(req: NextRequest) {
   }
 
   const fecha = d.ultima_hora_contacto ?? d.ultimo_contacto;
+  const ultimoContacto = fecha ? aInstante(fecha) : null;
+  if (fecha && !ultimoContacto) {
+    return NextResponse.json(
+      { ok: false, error: "Fecha no válida.", fields: { ultima_hora_contacto: "Fecha no válida." } },
+      { status: 422 },
+    );
+  }
 
   let contacto;
   try {
     contacto = await registrarContacto({
       telefono,
-      ultimoContacto: fecha ? new Date(fecha) : null,
+      ultimoContacto,
       datos: d.datos,
     });
   } catch (err) {

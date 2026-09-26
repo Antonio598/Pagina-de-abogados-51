@@ -9,7 +9,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import type Stripe from "stripe";
-import { formatDateTimeLong, SLOT_MINUTES } from "@/lib/booking";
+import { formatDateOnly, formatDateTimeLong, SLOT_MINUTES } from "@/lib/booking";
 import { db, dbReady, t, type Appointment } from "@/lib/db";
 import { filas, layout, sendMail } from "@/lib/mailer";
 import { formatMoney } from "@/lib/pricing";
@@ -118,7 +118,7 @@ const correoInterno = (cita: Appointment) =>
         Teléfono: cita.telefono,
         Entidad: cita.entidad,
         Municipio: cita.municipio,
-        "Fecha próxima": cita.fecha_proxima,
+        "Fecha próxima": cita.fecha_proxima ? formatDateOnly(cita.fecha_proxima) : null,
         Descripción: cita.descripcion,
         Importe: formatMoney(cita.precio_centavos, cita.moneda),
         "Crédito vigente hasta": fecha(cita.credito_vence_at),
@@ -151,8 +151,20 @@ const confirmar = async (session: Stripe.Checkout.Session) => {
 
   if (!cita) return; // ya estaba pagada: nada que hacer
   await Promise.all([
-    sendMail({ to: cita.correo, subject: `Tu asesoría está confirmada · ${cita.folio}`, html: correoCliente(cita) }),
-    sendMail({ subject: `[VERITUM] Cita pagada · ${cita.folio}`, html: correoInterno(cita), replyTo: cita.correo }),
+    // La clave de idempotencia la respeta Resend 24 h: aunque Stripe reintente
+    // el evento y se colara una carrera, el cliente no recibe dos confirmaciones.
+    sendMail({
+      to: cita.correo,
+      subject: `Tu asesoría está confirmada · ${cita.folio}`,
+      html: correoCliente(cita),
+      idempotencyKey: `cita-cliente-${cita.folio}`,
+    }),
+    sendMail({
+      subject: `[VERITUM] Cita pagada · ${cita.folio}`,
+      html: correoInterno(cita),
+      replyTo: cita.correo,
+      idempotencyKey: `cita-interno-${cita.folio}`,
+    }),
   ]);
   console.info("[webhook] Cita confirmada", { folio: cita.folio, slot: cita.slot_start });
 };

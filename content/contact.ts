@@ -2,8 +2,13 @@
 
 export const contact = {
   title: "Hablemos de tu situación",
-  text: "Cuéntanos brevemente qué necesitas. Revisaremos tu mensaje para confirmar si podemos ayudarte y cuál es el siguiente paso. Evita enviar información confidencial extensa hasta recibir indicaciones.",
+  text: "Estos son nuestros datos de contacto. Escríbenos y revisaremos tu mensaje para confirmar si podemos ayudarte y cuál es el siguiente paso. Evita enviar información confidencial extensa hasta recibir indicaciones.",
   dataTitle: "Datos de contacto",
+  /** Esta página no agenda nada: para eso están la agenda y la landing. */
+  noEsAgenda: "Esta página no reserva una sesión. Si quieres agendar una asesoría con horario y pago, hazlo desde la agenda.",
+  agendaCtaLabel: "Ir a la agenda",
+  formTitle: "O escríbenos por aquí",
+  formText: "Si prefieres dejar tu mensaje, llena este formulario y te respondemos por el medio que elijas.",
   coverageLabel: "Cobertura",
   faqTitle: "Preguntas frecuentes",
   labels: {
@@ -14,6 +19,7 @@ export const contact = {
     horario: "Horario",
     modalidad: "Modalidad",
     modalidadValor: "En línea (videollamada)",
+    responsable: "Contacto",
     redes: "Redes sociales oficiales",
   },
 } as const;

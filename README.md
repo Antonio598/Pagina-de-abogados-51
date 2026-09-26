@@ -332,7 +332,71 @@ Los documentos del cliente también aparecen en el detalle de su cita.
 El cliente llega al portal por tres caminos: la página de confirmación del pago,
 el correo de confirmación y un enlace en el pie de la landing.
 
-### 8.9 Pendientes de esta fase
+### 8.10 Correo con Resend
+
+El transporte de correo vive en [src/lib/mailer.ts](src/lib/mailer.ts) y prefiere
+**Resend** sobre SMTP: es una API HTTPS, no hace falta servidor de correo ni
+puertos abiertos, y admite una **clave de idempotencia** que Resend respeta 24 h.
+Eso último importa aquí: si Stripe reintenta el evento de pago, el cliente no
+recibe dos veces la confirmación.
+
+| Variable | Para qué |
+| --- | --- |
+| `RESEND_API_KEY` | Clave de https://resend.com/api-keys |
+| `RESEND_FROM` | Remitente. **Debe pertenecer a un dominio verificado en Resend** |
+| `CONTACT_TO_EMAIL` | Destinatario interno de VERITUM |
+
+Si no hay `RESEND_API_KEY` se usa SMTP como respaldo, y si no hay ninguno de los
+dos el envío falla de forma visible: no se simula nunca un correo enviado. Cuando
+Resend rechaza un envío, el cuerpo del error se registra completo, porque es la
+única pista útil cuando un correo no llega (dominio sin verificar suele ser la causa).
+
+El formulario de contacto también pasó a usar este mismo transporte: antes tenía
+su propia configuración de nodemailer duplicada.
+
+### 8.11 Seguimientos en hora de Ciudad de México
+
+Los recordatorios siguen decidiéndose comparando contra `now()` —eso no depende
+de zonas—, pero todo lo que una persona va a leer viaja además en hora de
+**America/Mexico_City**:
+
+- El payload del webhook lleva `ultimo_contacto_local`, `enviado_at_local`,
+  `cliente.slot_start_local` y el campo `zona`. Los instantes en UTC siguen ahí:
+  n8n redacta con los campos locales y calcula con los otros.
+- `POST /api/seguimientos/contacto` acepta la fecha **con o sin desfase**. Sin
+  desfase se interpreta como hora de Ciudad de México en lugar de rechazarse, que
+  es lo que hacía antes.
+
+### 8.12 Datos de contacto y agente de IA
+
+Datos confirmados por VERITUM, con valor por omisión en
+[src/lib/env.ts](src/lib/env.ts) (el mismo patrón que `modalidad`): así funcionan
+aunque el build de Docker no reciba el argumento, que es el fallo que dejaba la
+landing sin precio.
+
+| Dato | Valor |
+| --- | --- |
+| Contacto | Lic. Miguel Martínez |
+| Correo | contacto@veritum.com.mx |
+| WhatsApp / agente de IA | 55 6151 0289 |
+
+La página `/contacto` muestra ahora **los datos de contacto primero** (en el
+marcado, no solo visualmente) y el formulario después, con una nota explícita de
+que esa página no reserva ninguna sesión y un enlace a la agenda. El agente de IA
+apunta por omisión a `https://wa.me/525561510289`.
+
+### 8.13 Resúmenes en el panel
+
+`/panel/resumenes` reúne lo que cada persona escribió en el formulario al
+agendar, para leer los casos antes de las sesiones sin abrir cita por cita. Cuatro
+filtros: próximas, con texto, con fecha encima y todas. Cada tarjeta muestra el
+servicio y la situación, la fecha de la sesión con cuánto falta (destacando las de
+hoy, mañana y los próximos tres días), la fecha que le corre al cliente, su
+descripción completa, cuántos documentos ha subido, y enlaces a la cita y a sus
+archivos.
+
+
+### 8.14 Pendientes
 
 - [ ] **`DATABASE_URL` con el hostname interno de EasyPanel.** Hoy usa
       `sslmode=disable` por internet público. Ya viajaban nombres y teléfonos; con

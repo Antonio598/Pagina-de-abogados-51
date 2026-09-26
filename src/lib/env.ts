@@ -13,8 +13,12 @@ export const env = {
 
   // Datos de contacto {{telefono}} {{correo}} {{domicilio}} {{horario}} {{modalidad}} {{redes}}
   telefono: clean(process.env.NEXT_PUBLIC_TELEFONO),
-  whatsapp: clean(process.env.NEXT_PUBLIC_WHATSAPP),
-  correo: clean(process.env.NEXT_PUBLIC_CORREO),
+  /** Número del agente de IA por WhatsApp, confirmado por VERITUM. */
+  whatsapp: clean(process.env.NEXT_PUBLIC_WHATSAPP) ?? "55 6151 0289",
+  /** Correo de contacto confirmado por VERITUM. */
+  correo: clean(process.env.NEXT_PUBLIC_CORREO) ?? "contacto@veritum.com.mx",
+  /** Persona a la que se dirige el contacto, confirmada por VERITUM. */
+  contactoNombre: clean(process.env.NEXT_PUBLIC_CONTACTO_NOMBRE) ?? "Lic. Miguel Martínez",
   domicilio: clean(process.env.NEXT_PUBLIC_DOMICILIO),
   horario: clean(process.env.NEXT_PUBLIC_HORARIO),
   /** Todas las asesorías son por videollamada: no hay sesiones presenciales. */
@@ -39,8 +43,13 @@ export const env = {
   agendaUrl: clean(process.env.NEXT_PUBLIC_AGENDA_URL),
 
   // Landing de campaña (/consulta)
-  /** URL del agente de IA (WhatsApp, Messenger o web). Vacío = el botón no aparece. */
-  agenteIaUrl: clean(process.env.NEXT_PUBLIC_AGENTE_IA_URL),
+  /**
+   * URL del agente de IA. Por omisión es el WhatsApp confirmado de VERITUM, que
+   * es donde atiende el agente; una variable de entorno lo sobreescribe.
+   */
+  agenteIaUrl:
+    clean(process.env.NEXT_PUBLIC_AGENTE_IA_URL) ??
+    `https://wa.me/52${(clean(process.env.NEXT_PUBLIC_WHATSAPP) ?? "55 6151 0289").replace(/\D/g, "")}`,
   /** Video MP4 de la landing servido desde /public. Vacío = el bloque no aparece. */
   landingVideo: clean(process.env.NEXT_PUBLIC_LANDING_VIDEO),
   landingVideoPoster: clean(process.env.NEXT_PUBLIC_LANDING_VIDEO_POSTER),

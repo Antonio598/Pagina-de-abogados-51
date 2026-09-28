@@ -11,7 +11,8 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { MessageCircle, X } from "lucide-react";
+import { X } from "lucide-react";
+import { WhatsAppIcon } from "@/components/ui/WhatsAppIcon";
 import { landing } from "@content/landing";
 import { track } from "@/lib/analytics";
 import { TrackedLink } from "@/components/ui/TrackedLink";
@@ -147,7 +148,7 @@ export const ExitIntent = ({ agenteUrl }: { agenteUrl?: string }) => {
               onClick={() => setAbierto(false)}
               className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-brand bg-azul px-6 text-base font-medium text-blanco transition-colors hover:bg-azul-2"
             >
-              <MessageCircle className="size-[18px]" strokeWidth={1.75} aria-hidden />
+              <WhatsAppIcon className="size-4" />
               {s.ctaAsistente}
             </a>
           )}

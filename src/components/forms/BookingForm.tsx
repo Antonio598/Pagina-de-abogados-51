@@ -253,7 +253,16 @@ export const BookingForm = ({
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                       <span className="font-medium text-azul">{p.nombre}</span>
-                      <span className="font-display text-lg leading-none tabular-nums text-azul">{p.etiqueta}</span>
+                      <span className="text-right">
+                        <span className="font-display block text-lg leading-none tabular-nums text-azul">
+                          {p.etiqueta}
+                        </span>
+                        {p.promoActiva && (
+                          <span className="mt-0.5 block text-xs text-carbon/70">
+                            <span className="line-through">{p.etiquetaNormal}</span> {p.etiquetaPromo}
+                          </span>
+                        )}
+                      </span>
                     </span>
                     <span className="mt-1.5 block text-[0.92rem] text-carbon/80">{p.resumen}</span>
                     {p.requiereDocumentos && (
@@ -478,7 +487,16 @@ export const BookingForm = ({
               <div>
                 <p className="eyebrow">Total a pagar</p>
                 <p className="font-display mt-1 text-[1.9rem] leading-none text-azul">{producto.etiqueta}</p>
-                <p className="mt-1 text-sm text-carbon/75">{producto.nombre}</p>
+                <p className="mt-1 text-sm text-carbon/75">
+                  {producto.nombre}
+                  {producto.promoActiva && (
+                    <>
+                      {" · "}
+                      <span className="line-through">{producto.etiquetaNormal}</span>{" "}
+                      <span className="font-medium text-dorado-2">{producto.etiquetaPromo}</span>
+                    </>
+                  )}
+                </p>
               </div>
             </div>
 

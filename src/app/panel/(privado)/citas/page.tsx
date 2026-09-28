@@ -1,16 +1,29 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { CalendarX2, Download } from "lucide-react";
+import { CalendarX2, Download, UserPlus } from "lucide-react";
 import { formatDateLong, formatTime } from "@/lib/booking";
-import { COLS_DOCUMENTO, db, dbReady, t, type Appointment, type Documento } from "@/lib/db";
+import { COLS_DOCUMENTO, db, dbReady, fn, t, type Appointment, type Documento } from "@/lib/db";
 import { getSession } from "@/lib/panel-auth";
 import { formatMoney } from "@/lib/pricing";
 import { normalizarTelefono } from "@/lib/seguimiento";
-import { productoPorId } from "@content/productos";
+import {
+  creditoVigenciaDias,
+  MONEDA,
+  productoODefecto,
+  productoPorId,
+  productos,
+  situaciones,
+  situacionValues,
+} from "@content/productos";
+import { nuevoFolio } from "@/lib/booking";
+import { site } from "@content/site";
 import { cn } from "@/lib/utils";
 import { CitaDetalle, estadoCredito } from "@/components/panel/CitaDetalle";
 
 export const dynamic = "force-dynamic";
+
+const campo =
+  "min-h-10 w-full rounded-brand border border-gris bg-blanco px-3 text-[0.95rem] font-normal text-carbon focus:border-azul focus:outline-none";
 
 // Acciones de servidor: cada una vuelve a comprobar la sesión, porque una acción
 // puede invocarse directamente sin pasar por la página.
@@ -26,6 +39,41 @@ async function aplicarCredito(formData: FormData) {
     update ${t("appointments")}
        set credito_aplicado_at = now(), credito_asunto = ${asunto}, credito_notas = ${notas || null}
      where id = ${id}::uuid and status = 'pagada' and credito_aplicado_at is null`;
+  revalidatePath("/panel/citas");
+}
+
+async function crearCitaManual(formData: FormData) {
+  "use server";
+  if (!(await getSession())) throw new Error("Sesión no válida.");
+
+  const nombre = String(formData.get("nombre") ?? "").trim().slice(0, 120);
+  const correo = String(formData.get("correo") ?? "").trim().slice(0, 160);
+  const telefono = String(formData.get("telefono") ?? "").trim().slice(0, 25);
+  const cuando = String(formData.get("cuando") ?? "");
+  const productoId = String(formData.get("producto") ?? "asesoria");
+  const situacionRaw = String(formData.get("situacion") ?? "");
+  const descripcion = String(formData.get("descripcion") ?? "").trim().slice(0, 2000);
+
+  const inicio = new Date(cuando);
+  if (!nombre || !correo || !telefono || Number.isNaN(inicio.getTime())) return;
+
+  const producto = productoODefecto(productoId);
+  const fin = new Date(inicio.getTime() + producto.duracionMinutos * 60_000);
+  const situacion = (situacionValues as readonly string[]).includes(situacionRaw) ? situacionRaw : null;
+
+  const sql = db();
+  try {
+    // La función de Postgres rechaza el horario si se solapa con otra cita viva.
+    await sql`
+      select * from ${sql.unsafe(fn("crear_cita_manual"))}(
+        ${nuevoFolio()}, ${inicio}, ${fin},
+        ${nombre}, ${correo}, ${telefono}, 'laboral', ${site.modalidad},
+        ${producto.id}, ${situacion}, ${descripcion || null},
+        ${producto.precioCentavos}, ${MONEDA}, ${creditoVigenciaDias}
+      )`;
+  } catch (err) {
+    console.error("[panel/citas] crearCitaManual", err);
+  }
   revalidatePath("/panel/citas");
 }
 
@@ -127,6 +175,68 @@ export default async function CitasPage({ searchParams }: PageProps<"/panel/cita
           Exportar CSV
         </a>
       </div>
+
+      {/* Registrar una cita ya pagada, para quien paga por transferencia y para
+          poder probar el portal sin pasar por Stripe. Plegado: no es lo habitual. */}
+      <details className="mt-6 rounded-brand border border-gris bg-blanco p-5">
+        <summary className="flex cursor-pointer items-center gap-2 text-[0.95rem] font-medium text-azul">
+          <UserPlus className="size-4 text-dorado-2" strokeWidth={1.75} aria-hidden />
+          Registrar una cita pagada a mano
+        </summary>
+        <p className="mt-3 text-sm text-carbon/75">
+          Queda como pagada, genera su folio y su expediente, y respeta los horarios ya ocupados. Úsalo para un pago por
+          transferencia o para probar el portal del cliente.
+        </p>
+        <form action={crearCitaManual} className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5 text-[0.9rem] font-medium text-azul">
+            Nombre
+            <input name="nombre" required maxLength={120} className={campo} />
+          </label>
+          <label className="flex flex-col gap-1.5 text-[0.9rem] font-medium text-azul">
+            Correo
+            <input name="correo" type="email" required maxLength={160} className={campo} />
+          </label>
+          <label className="flex flex-col gap-1.5 text-[0.9rem] font-medium text-azul">
+            Teléfono
+            <input name="telefono" type="tel" required maxLength={25} placeholder="55 1234 5678" className={campo} />
+          </label>
+          <label className="flex flex-col gap-1.5 text-[0.9rem] font-medium text-azul">
+            Día y hora
+            <input name="cuando" type="datetime-local" required className={campo} />
+          </label>
+          <label className="flex flex-col gap-1.5 text-[0.9rem] font-medium text-azul">
+            Servicio
+            <select name="producto" defaultValue="asesoria" className={campo}>
+              {productos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5 text-[0.9rem] font-medium text-azul">
+            Situación
+            <select name="situacion" defaultValue="" className={campo}>
+              <option value="">Sin indicar</option>
+              {situaciones.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.titulo}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5 text-[0.9rem] font-medium text-azul sm:col-span-2">
+            Qué nos contó
+            <textarea name="descripcion" rows={2} maxLength={2000} className={campo} />
+          </label>
+          <button
+            type="submit"
+            className="inline-flex min-h-10 items-center justify-center rounded-brand bg-azul px-4 text-[0.9rem] font-medium text-blanco hover:bg-azul-2 sm:col-span-2"
+          >
+            Registrar la cita
+          </button>
+        </form>
+      </details>
 
       <div className="mt-6 flex flex-wrap items-center gap-2">
         {filtros.map((f) => (

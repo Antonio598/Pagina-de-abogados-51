@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check, FileUp, Gavel, Info, ShieldCheck, Video, X } from "lucide-react";
+import { ArrowRight, Check, FileUp, Gavel, Info, ShieldCheck, Timer, Video, X } from "lucide-react";
 import { landing } from "@content/landing";
-import { creditoRepresentacion, productos, situaciones } from "@content/productos";
+import { creditoRepresentacion, productos, promocion, situaciones } from "@content/productos";
 import { site } from "@content/site";
 import { env } from "@/lib/env";
 import { formatMoney } from "@/lib/pricing";
+import { getPromo } from "@/lib/promo-server";
 import { getCupoSemana } from "@/lib/booking";
 import { dbReady } from "@/lib/db";
 import { pad2 } from "@/lib/utils";
@@ -38,7 +39,13 @@ const hrefSituacion = (id: string) => `/consulta/agendar?situacion=${id}`;
 // Landing de campaña para anuncios de Meta. Defensa laboral patronal.
 // Mobile-first: una sola columna, CTA siempre a un pulgar y barra fija inferior.
 export default async function LandingPage() {
-  const desde = formatMoney(Math.min(...productos.map((p) => p.precioCentavos)));
+  const promo = await getPromo();
+  // Con la oferta viva, el precio más bajo del catálogo es el promocional.
+  const precioDe = (id: string, normal: number) =>
+    promo.active && id === promocion.productoId ? promocion.precioCentavos : normal;
+  const desde = formatMoney(
+    Math.min(...productos.map((x) => precioDe(x.id, x.precioCentavos))),
+  );
 
   // Cupo real: se cuenta la agenda de verdad. Sin base de datos no se muestra
   // ningún número en lugar de inventarlo.
@@ -100,6 +107,14 @@ export default async function LandingPage() {
               <Check className="mt-0.5 size-4 shrink-0 text-dorado-2" strokeWidth={2} aria-hidden />
               <span>{creditoRepresentacion.titulo}.</span>
             </p>
+            {promo.active && (
+              <p className="mt-3 flex gap-2 rounded-brand border border-dorado bg-dorado/10 p-3 text-[0.9rem] text-carbon/90">
+                <Timer className="mt-0.5 size-4 shrink-0 text-dorado-2" strokeWidth={1.75} aria-hidden />
+                <span>
+                  <strong className="text-azul">{promocion.titulo}.</strong> {promocion.aviso(promocion.minutos)}
+                </span>
+              </p>
+            )}
           </div>
 
           {/* Cupo real de la agenda */}
@@ -315,8 +330,16 @@ export default async function LandingPage() {
             <div key={p.id} className="borde-vivo rounded-brand border border-gris bg-blanco p-5" data-reveal="">
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <h3 className="font-display text-[1.15rem] leading-snug text-azul">{p.nombre}</h3>
-                <p className="font-display text-[1.75rem] leading-none tabular-nums text-azul">
-                  {formatMoney(p.precioCentavos)}
+                <p className="text-right">
+                  <span className="font-display block text-[1.75rem] leading-none tabular-nums text-azul">
+                    {formatMoney(precioDe(p.id, p.precioCentavos))}
+                  </span>
+                  {promo.active && p.id === promocion.productoId && (
+                    <span className="mt-1 block text-sm text-carbon/70">
+                      <span className="line-through">{formatMoney(p.precioCentavos)}</span>{" "}
+                      <span className="font-medium text-dorado-2">{promocion.etiqueta}</span>
+                    </span>
+                  )}
                 </p>
               </div>
               <p className="mt-3 text-[0.98rem] text-carbon/85">{p.resumen}</p>

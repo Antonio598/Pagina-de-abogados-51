@@ -11,7 +11,15 @@ import { landing } from "@content/landing";
 import { process as proceso } from "@content/process";
 import { track } from "@/lib/analytics";
 
-type Estado = { status?: string; folio?: string; nombre?: string; cuando?: string; encontrada?: boolean };
+type Estado = {
+  status?: string;
+  folio?: string;
+  nombre?: string;
+  cuando?: string;
+  encontrada?: boolean;
+  /** El servicio contratado necesita que el cliente cargue documentación. */
+  requiereDocumentos?: boolean;
+};
 
 export const ConfirmacionEstado = ({ sessionId }: { sessionId?: string }) => {
   const [estado, setEstado] = useState<Estado | null>(null);
@@ -73,20 +81,24 @@ export const ConfirmacionEstado = ({ sessionId }: { sessionId?: string }) => {
         </dl>
 
         {/* El portal, con el folio ya en pantalla: es el momento en que el
-            cliente lo tiene delante y puede subir su documentación. */}
-        <div className="mt-8 rounded-brand border border-dorado bg-blanco p-5">
-          <h2 className="font-display type-h3 flex items-center gap-2 text-azul">
-            <FileUp className="size-5 text-dorado-2" strokeWidth={1.75} aria-hidden />
-            {landing.confirmacion.portalTitle}
-          </h2>
-          <p className="mt-2 text-[0.95rem] text-carbon/85">{landing.confirmacion.portalTexto}</p>
-          <Link
-            href="/portal"
-            className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-brand bg-azul px-6 text-base font-medium text-blanco transition-colors hover:bg-azul-2"
-          >
-            {landing.confirmacion.portalCta}
-          </Link>
-        </div>
+            cliente lo tiene delante. Solo para los servicios que piden
+            documentación, y antes de "qué preparar", porque entonces subir los
+            documentos ES el siguiente paso. */}
+        {estado?.requiereDocumentos && (
+          <div className="mt-8 rounded-brand border border-dorado bg-blanco p-5">
+            <h2 className="font-display type-h3 flex items-center gap-2 text-azul">
+              <FileUp className="size-5 text-dorado-2" strokeWidth={1.75} aria-hidden />
+              {landing.confirmacion.portalTitle}
+            </h2>
+            <p className="mt-2 text-[0.95rem] text-carbon/85">{landing.confirmacion.portalTexto}</p>
+            <Link
+              href={`/portal?folio=${encodeURIComponent(estado.folio ?? "")}`}
+              className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-brand bg-azul px-6 text-base font-medium text-blanco transition-colors hover:bg-azul-2"
+            >
+              {landing.confirmacion.portalCta}
+            </Link>
+          </div>
+        )}
 
         <h2 className="font-display type-h3 mt-8 flex items-center gap-2 text-azul">
           <CalendarCheck className="size-5 text-dorado-2" strokeWidth={1.75} aria-hidden />
@@ -102,7 +114,17 @@ export const ConfirmacionEstado = ({ sessionId }: { sessionId?: string }) => {
         </ul>
         <p className="mt-6 rounded-brand border-l-2 border-dorado bg-blanco p-4 text-[0.95rem] text-carbon/85">{proceso.note.text}</p>
 
-        <Link href="/" className="link-text mt-8 inline-block py-2 font-medium">
+        <p className="mt-8 text-sm text-carbon/85">
+          ¿Necesitas cancelar o mover tu cita?{" "}
+          <Link
+            href={`/mi-cita?folio=${encodeURIComponent(estado?.folio ?? "")}`}
+            className="link-text inline-flex min-h-10 items-center font-medium"
+          >
+            Solicítalo aquí
+          </Link>
+        </p>
+
+        <Link href="/" className="link-text mt-4 inline-flex min-h-10 items-center font-medium">
           {landing.confirmacion.volver}
         </Link>
       </div>

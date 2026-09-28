@@ -3,6 +3,8 @@ import Link from "next/link";
 import { legalNav, site } from "@content/site";
 import { Logo } from "@/components/layout/Logo";
 import { LandingTracker } from "@/components/landing/LandingTracker";
+import { PromoBar } from "@/components/landing/PromoBar";
+import { getPromo } from "@/lib/promo-server";
 
 // Landing de campaña: layout propio, sin el header ni el footer del sitio.
 // No se enlaza desde ninguna página pública y no se indexa.
@@ -10,7 +12,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false, nocache: true },
 };
 
-export default function ConsultaLayout({ children }: LayoutProps<"/consulta">) {
+export default async function ConsultaLayout({ children }: LayoutProps<"/consulta">) {
+  const promo = await getPromo();
+
   return (
     <div className="flex min-h-dvh flex-col bg-marfil">
       <LandingTracker />
@@ -18,9 +22,13 @@ export default function ConsultaLayout({ children }: LayoutProps<"/consulta">) {
       <header className="sticky top-0 z-40 border-b border-gris bg-marfil">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-4 py-2.5 sm:gap-3">
           <Logo size="sm" asLink={false} priority />
-          <span className="text-[0.7rem] uppercase tracking-[0.12em] text-carbon/70 sm:text-xs">
-            Defensa laboral patronal
-          </span>
+          {promo.enabled ? (
+            <PromoBar restanteMs={promo.restanteMs} enabled={promo.enabled} />
+          ) : (
+            <span className="text-[0.7rem] uppercase tracking-[0.12em] text-carbon/70 sm:text-xs">
+              Defensa laboral patronal
+            </span>
+          )}
         </div>
       </header>
 

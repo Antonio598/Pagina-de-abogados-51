@@ -5,6 +5,7 @@ import { landing } from "@content/landing";
 import { productoODefecto, situaciones } from "@content/productos";
 import { cobroDisponible } from "@/lib/pricing";
 import { productosVista } from "@/lib/productos-vista";
+import { getPromo } from "@/lib/promo-server";
 import { env } from "@/lib/env";
 import { BookingForm } from "@/components/forms/BookingForm";
 import { AgenteIaLink } from "@/components/landing/AgenteIaLink";
@@ -25,7 +26,9 @@ export default async function AgendarPage({ searchParams }: PageProps<"/consulta
   const situacion = situaciones.find((s) => s.id === situacionParam);
   const productoParam = typeof sp.producto === "string" ? sp.producto : undefined;
   const producto = productoODefecto(productoParam ?? situacion?.productoSugerido);
-  const productos = productosVista();
+  // El precio de oferta se resuelve en el servidor: el formulario solo lo pinta.
+  const promo = await getPromo();
+  const productos = productosVista(promo.active);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">

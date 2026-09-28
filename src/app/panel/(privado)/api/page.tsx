@@ -14,6 +14,11 @@ import {
 } from "@/lib/seguimiento";
 import { creditoRepresentacion, productos, situaciones } from "@content/productos";
 import { formatMoney } from "@/lib/pricing";
+import { mailTransporte } from "@/lib/mailer";
+import { portalConfigurado } from "@/lib/portal-auth";
+import { promoConfigurada } from "@/lib/promo-server";
+import { SLOT_MINUTES } from "@/lib/booking";
+import { promocion } from "@content/productos";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -96,6 +101,57 @@ export default async function ApiPage() {
     ultimosContactos(20),
     ultimosRecordatorios(20),
   ]);
+
+  const revision = [
+    { que: "Base de datos", para: "DATABASE_URL", ok: dbReady, critico: true },
+    {
+      que: "Correo",
+      para: `RESEND_API_KEY o SMTP · transporte: ${mailTransporte()}`,
+      ok: mailTransporte() !== "ninguno",
+      critico: true,
+    },
+    { que: "Cobro con Stripe", para: "STRIPE_SECRET_KEY", ok: Boolean(process.env.STRIPE_SECRET_KEY), critico: true },
+    {
+      que: "Webhook de Stripe",
+      para: "STRIPE_WEBHOOK_SECRET",
+      ok: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
+      critico: true,
+    },
+    {
+      que: "Precio del servicio I",
+      para: "STRIPE_PRICE_ASESORIA_ID",
+      ok: Boolean(process.env.STRIPE_PRICE_ASESORIA_ID),
+      critico: false,
+    },
+    {
+      que: "Precio del servicio II",
+      para: "STRIPE_PRICE_REVISION_ID",
+      ok: Boolean(process.env.STRIPE_PRICE_REVISION_ID),
+      critico: false,
+    },
+    {
+      que: "Precio de la oferta",
+      para: `${promocion.stripePriceEnv} · sin él no hay reloj ni descuento`,
+      ok: promoConfigurada(),
+      critico: false,
+    },
+    { que: "Portal del cliente", para: "PORTAL_SESSION_SECRET", ok: portalConfigurado(), critico: true },
+    { que: "Seguimiento n8n", para: "SEGUIMIENTO_API_TOKEN", ok: tokenConfigurado(), critico: false },
+    { que: "Webhook de n8n", para: "SEGUIMIENTO_WEBHOOK_URL", ok: Boolean(hookHost), critico: false },
+    {
+      que: "Duración de la parrilla",
+      para: `BOOKING_SLOT_MINUTES · ahora ${SLOT_MINUTES} min; las sesiones duran 60`,
+      ok: SLOT_MINUTES >= 60,
+      critico: true,
+    },
+    {
+      que: "Versión del aviso de privacidad",
+      para: "PRIVACY_NOTICE_VERSION · se guarda con cada consentimiento",
+      ok: Boolean(process.env.PRIVACY_NOTICE_VERSION),
+      critico: false,
+    },
+    { que: "Sala de videollamada", para: "MEETING_URL · respaldo del enlace por cita", ok: Boolean(process.env.MEETING_URL), critico: false },
+  ];
 
   // Un solo lugar del que salen los importes y las condiciones que dice el bot.
   const textoBot = [
@@ -388,6 +444,43 @@ export default async function ApiPage() {
             de la aplicación: reiniciar o desplegar el sitio no pierde ningún recordatorio.
           </span>
         </p>
+      </Seccion>
+
+      <Seccion titulo="Diagnóstico de la configuración">
+        <p className="mt-3 text-[0.95rem] text-carbon/85">
+          Qué está puesto y qué falta. Nunca se muestra el valor de un secreto, solo si existe.
+        </p>
+        <div className="mt-4 overflow-hidden rounded-brand border border-gris">
+          <table className="w-full border-collapse text-left text-[0.92rem]">
+            <tbody>
+              {revision.map((r) => (
+                <tr key={r.que} className="block border-b border-gris last:border-0 sm:table-row">
+                  <td className="block px-4 pt-3 sm:table-cell sm:py-3">
+                    <span className="font-medium text-azul">{r.que}</span>
+                    <span className="block text-xs text-carbon/70">{r.para}</span>
+                  </td>
+                  <td className="block px-4 pb-3 sm:table-cell sm:py-3 sm:text-right">
+                    <span
+                      className={cn(
+                        "rounded-full px-2.5 py-0.5 text-xs uppercase tracking-wider",
+                        r.ok ? "bg-azul text-blanco" : r.critico ? "border border-dorado bg-blanco text-azul" : "bg-marfil text-carbon/75",
+                      )}
+                    >
+                      {r.ok ? "listo" : r.critico ? "falta" : "opcional"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {revision.some((r) => !r.ok && r.critico) && (
+          <p className="mt-3 text-[0.92rem] text-carbon/85">
+            Mientras algo marcado como <strong>falta</strong> siga así, ese trozo del flujo no funciona. Si el portal del
+            cliente no deja pasar, revisa también que exista al menos una cita pagada: sin folio no hay con qué entrar, y
+            puedes crear una a mano desde Citas.
+          </p>
+        )}
       </Seccion>
 
       <Seccion titulo="Texto de los servicios y del crédito (para el bot)">

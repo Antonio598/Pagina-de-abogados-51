@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle } from "lucide-react";
+import { WhatsAppIcon } from "@/components/ui/WhatsAppIcon";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +19,7 @@ export const AgenteIaLink = ({ href, children, className, compact }: { href?: st
         className,
       )}
     >
-      <MessageCircle className="size-4" strokeWidth={1.75} aria-hidden />
+      <WhatsAppIcon className="size-[15px]" />
       {children}
     </a>
   );

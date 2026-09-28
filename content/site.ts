@@ -18,8 +18,10 @@ export type NavItem = { label: string; href: string; children?: NavChild[] };
 
 export const serviceLinks: NavChild[] = [
   { label: "Derecho familiar", href: "/servicios/derecho-familiar", short: "Familia" },
-  { label: "Derecho laboral", href: "/servicios/derecho-laboral", short: "Trabajo" },
-  { label: "Asesoría para empresas", href: "/servicios/asesoria-empresas", short: "Empresa" },
+  // Los slugs NO cambian aunque cambien los nombres: mantener la URL evita
+  // redirecciones eternas y no cambia nada de lo que el visitante ve.
+  { label: "Defensa laboral para patrones", href: "/servicios/derecho-laboral", short: "Patrones" },
+  { label: "Derecho laboral para trabajadores", href: "/servicios/asesoria-empresas", short: "Trabajadores" },
   { label: "Derecho civil y contratos", href: "/servicios/derecho-civil-contratos", short: "Contratos" },
 ];
 

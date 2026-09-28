@@ -396,7 +396,134 @@ descripción completa, cuántos documentos ha subido, y enlaces a la cita y a su
 archivos.
 
 
-### 8.14 Pendientes
+### 8.15 La oferta de 5 minutos
+
+La **Revisión laboral prioritaria** cuesta $1,990 en lugar de $3,490 durante los
+primeros 5 minutos desde que el visitante abre la landing. El reloj está en la
+cabecera de `/consulta`.
+
+Esto **revierte** la decisión de dos fases antes (quitar la cuenta atrás por el
+"sin urgencia artificial" del brief). Se implementó con una condición: que sea
+verdad. Al expirar, Stripe cobra $3,490 de verdad.
+
+Cómo se sostiene eso:
+- La hora de inicio va en una **cookie httpOnly firmada con HMAC**, puesta por
+  [src/proxy.ts](src/proxy.ts) en la primera visita. El navegador no puede
+  alargarla.
+- `/api/reservas` **vuelve a leer y verificar** la cookie antes de elegir el id de
+  precio de Stripe ([src/lib/promo-server.ts](src/lib/promo-server.ts)).
+- **Para pintar y para cobrar se usan funciones distintas a propósito.**
+  `getPromo()` sirve para mostrar, y ahí una primera visita sin cookie todavía
+  enseña la ventana completa. `promoAplicaA()` sirve para cobrar y exige una
+  cookie que exista y cuya firma cuadre. Si no se distinguieran, una cookie
+  falsificada se rechazaría por la firma, quedaría como "sin cookie" y se leería
+  como primera visita: descuento gratis para quien sepa fabricar una. Ese agujero
+  existió durante el desarrollo y las pruebas lo encontraron.
+
+Verificado en seis escenarios: cookie vigente → $1,990; expirada, falsificada,
+sin firma, del futuro y sin cookie → $3,490. Los seis casos.
+
+Dos cosas aceptadas y escritas:
+- El precio de la Checkout Session queda fijado al crearla, así que quien empiece
+  a pagar dentro de los 5 minutos puede completarlo hasta 20 minutos después (la
+  retención del horario) al precio de oferta.
+- Borrar la cookie reinicia la ventana. La alternativa sería identificar por IP y
+  navegador, que es peor: datos personales y falsos positivos por NAT.
+
+Los tres ids de precio van en el entorno; los minutos y el importe en
+[content/productos.ts](content/productos.ts), por la misma razón que los precios.
+
+### 8.16 Expedientes
+
+Al quedar pagada una cita se crea **solo** su expediente, con un trigger sobre
+`appointments` y no en el webhook: el webhook se reintenta y se puede olvidar en
+un camino nuevo (una cita registrada a mano), y un trigger no se olvida.
+
+Uno por cita pagada, no uno por persona: un mismo patrón puede tener dos asuntos
+y mezclarlos sería peor que separarlos. El avance es una **bitácora**
+(`expediente_notas`), no un campo que se sobreescribe: un expediente necesita
+historial. El estado y la nota se guardan en la misma transacción para que no
+puedan discrepar.
+
+`telefono_normalizado` admite nulo a propósito, y esto importa: el formulario
+acepta teléfonos de 8 dígitos y la clave canónica exige 10. Un check obligatorio
+habría hecho fallar el UPDATE que confirma el pago → 500 en el webhook → Stripe
+reintentando sin fin → **el cliente paga y nunca recibe folio ni correo**.
+Probado con un teléfono de 8 dígitos.
+
+En `/panel/expedientes`: lista con filtros por estado, detalle con la bitácora,
+formulario para anotar avance y mover estado, y enlace a los documentos.
+
+### 8.17 Cancelar o mover una cita
+
+`/mi-cita` — el cliente entra con **teléfono y folio** (el enlace del correo lleva
+el folio precargado) y solicita cancelar o mover. Pide los dos datos y no solo el
+teléfono porque con el teléfono a secas cualquiera vería la cita de otra persona.
+
+**La solicitud solo se envía: el despacho la aplica.** El horario NO se libera
+hasta que se confirma, y eso se le dice al cliente con esas palabras en la página
+y en el correo. Una solicitud pendiente por cita, sin duplicados.
+
+`/panel/cancelaciones` es la cola: aplicar una cancelación libera el horario
+—único camino por el que un horario pagado vuelve a estar disponible— o mover la
+cita a otro horario, comprobando que el nuevo no se solape. Verificado el ciclo
+completo: solicitar → sigue ocupado → aplicar → vuelve a ofrecerse.
+
+### 8.18 Cita registrada a mano
+
+En `/panel/citas`, plegado, hay un formulario para registrar una cita **ya
+pagada**: genera folio, crea su expediente y respeta los horarios ocupados. Sirve
+para quien paga por transferencia y para poder probar el portal sin Stripe.
+
+Es la respuesta a "el portal no me deja pasar": el portal exige un folio de una
+cita pagada, y la tabla estaba vacía porque nadie había pagado nunca.
+
+### 8.19 Un fallo de doble reserva que se corrigió
+
+`BOOKING_SLOT_MINUTES` valía **45** por omisión y los dos servicios duran **60**.
+La parrilla se generaba cada 45 minutos y `reservar_slot` solo rechazaba un
+`slot_start` idéntico, así que **10:00 y 10:45 podían reservarse las dos y se
+solapaban 15 minutos**: dos clientes distintos en la misma franja. En cuanto
+Stripe cobrara de verdad, habría pasado.
+
+Corregido en dos sitios: `reservar_slot` ahora comprueba **solapamiento por
+rango** (se cambió el cuerpo, no la firma, así que no se creó ninguna sobrecarga),
+y `BOOKING_SLOT_MINUTES` debe valer 60. Verificado: 10:00 entra, 10:45 se rechaza,
+11:00 entra.
+
+### 8.20 Diagnóstico de la configuración
+
+`/panel/api` incluye una tabla que dice qué está configurado y qué falta —Resend,
+Stripe, el secreto del portal, la duración de la parrilla, la versión del aviso—
+mostrando solo **presente o ausente**, nunca el valor de un secreto. Es lo que
+habría explicado desde el principio por qué el portal no dejaba pasar.
+
+### 8.21 Biblioteca: cuatro artículos con fundamento
+
+Un artículo por servicio, y cada sección puede llevar su **fundamento legal**
+(`ArticleSection.fuentes`), con la ley, los artículos y la fecha de la última
+reforma del texto consultado, para que se note cuándo una cita envejece.
+
+| Servicio | Artículo |
+| --- | --- |
+| Familiar | Pensión alimenticia sin matrimonio |
+| Laboral patronal | Recibí un citatorio de conciliación laboral: qué hacer |
+| Laboral trabajador | Terminó tu relación de trabajo: qué te corresponde |
+| Civil y contratos | Cómo revisar un contrato antes de firmarlo |
+
+Cada precepto se verificó **uno por uno** contra el texto vigente publicado por la
+Cámara de Diputados: LFT (última reforma DOF 14-05-2026) y CCF (14-11-2025). Se
+citan, entre otros, los artículos 47, 48, 50, 76, 80, 87, 516, 518, 684-B, 684-D,
+684-E, 804 y 805 de la LFT, y 303, 308, 311, 317, 360, 1794, 1812-1823, 1839,
+1851 y 2224 del CCF.
+
+> **Un abogado tiene que revisarlos antes de publicarlos.** La redacción y las
+> citas están verificadas; la responsabilidad profesional del contenido jurídico
+> no es de quien lo redactó. Los artículos advierten además que en materia
+> familiar y civil rige el código de cada entidad, no el federal.
+
+
+### 8.22 Pendientes
 
 - [ ] **`DATABASE_URL` con el hostname interno de EasyPanel.** Hoy usa
       `sslmode=disable` por internet público. Ya viajaban nombres y teléfonos; con
@@ -409,7 +536,18 @@ archivos.
       alcance patronal, revisión prioritaria), pero siguen sin cuerpo.
 - [ ] `PORTAL_SESSION_SECRET` y `BOOKING_SLOT_MINUTES=60` en EasyPanel.
 - [ ] Stripe: `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET`. Sin ellos no se puede
-      cobrar ni probar el flujo completo de pago.
+      cobrar ni probar el flujo completo de pago. Los tres ids de precio ya están
+      en `.env.example`.
+- [ ] **Resend**: `RESEND_API_KEY` y el dominio de `RESEND_FROM` verificado. Sin
+      correo el cliente paga y nunca recibe su folio, y sin folio no puede entrar
+      al portal ni a /mi-cita.
+- [ ] **`BOOKING_SLOT_MINUTES=60`**: con 45 la parrilla no coincide con la
+      duración de las sesiones (ver 8.19).
+- [ ] **Revisión de un abogado a los cuatro artículos de la biblioteca** antes de
+      publicarlos (ver 8.21). Las citas están verificadas contra el texto vigente;
+      la responsabilidad profesional del contenido no.
+- [ ] Los tres avisos legales siguen **sin cuerpo**: se quitó la nota de pendiente
+      porque lo pediste, y el formulario de reserva obliga a aceptarlos.
 - [ ] `MEETING_URL`: sala fija de videollamada, como respaldo del enlace por cita.
 - [ ] **Equipo de defensa laboral** — [content/equipo.ts](content/equipo.ts) está
       **vacío a propósito**. Para encender la sección hacen falta, por cada

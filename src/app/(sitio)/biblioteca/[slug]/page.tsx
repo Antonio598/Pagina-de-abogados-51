@@ -82,23 +82,38 @@ export default async function ArticlePage({ params }: PageProps<"/biblioteca/[sl
             </Stagger>
 
             {/* Cuerpo del artículo: secciones con subtítulos, párrafos y listas (CMS). */}
-            {r.body?.map((section) => (
-              <Reveal key={section.heading} className="mt-12">
+            {/* Clave por índice: dos secciones podrían llamarse igual y la
+                reconciliación de React se corrompería en silencio. */}
+            {r.body?.map((section, si) => (
+              <Reveal key={`${si}-${section.heading}`} className="mt-12">
                 <h2 className="font-display type-h2 text-azul">{section.heading}</h2>
-                {section.paragraphs?.map((p) => (
-                  <p key={p} className="measure mt-4 text-carbon/90">
+                {section.paragraphs?.map((p, pi) => (
+                  <p key={`${pi}-${p.slice(0, 24)}`} className="measure mt-4 text-carbon/90">
                     {p}
                   </p>
                 ))}
                 {section.list && (
                   <ul className="mt-4 space-y-2">
-                    {section.list.map((item) => (
-                      <li key={item} className="flex items-start gap-4">
+                    {section.list.map((item, li) => (
+                      <li key={`${li}-${item.slice(0, 24)}`} className="flex items-start gap-4">
                         <span className="mt-[0.7em] h-px w-5 shrink-0 bg-dorado" aria-hidden />
                         <span className="text-carbon/90">{item}</span>
                       </li>
                     ))}
                   </ul>
+                )}
+                {section.fuentes && section.fuentes.length > 0 && (
+                  <div className="mt-5 rounded-brand border-l-2 border-dorado bg-marfil px-4 py-3">
+                    <p className="eyebrow">Fundamento</p>
+                    <ul className="mt-1.5 space-y-1">
+                      {section.fuentes.map((f, fi) => (
+                        <li key={`${fi}-${f.ley}`} className="text-[0.88rem] text-carbon/80">
+                          <span className="font-medium text-azul">{f.ley}</span>, {f.articulos}{" "}
+                          <span className="text-carbon/60">(texto vigente, última reforma {f.version})</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
               </Reveal>
             ))}

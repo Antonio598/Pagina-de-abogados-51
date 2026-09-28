@@ -254,10 +254,14 @@ begin
      and hold_expires_at < now();
 
   -- 2) El horario debe seguir libre y no estar bloqueado
+  -- Solapamiento por RANGO, no igualdad de slot_start: si la parrilla avanza
+  -- cada 45 minutos y las sesiones duran 60, dos horarios consecutivos se
+  -- pisarían 15 minutos y ambos quedarían reservados.
   if exists (
     select 1 from veritum.appointments
-     where slot_start = p_slot_start
-       and status in ('pagada', 'pendiente_pago')
+     where status in ('pagada', 'pendiente_pago')
+       and slot_start < p_slot_end
+       and slot_end > p_slot_start
   ) then
     return null;
   end if;
@@ -714,6 +718,211 @@ create trigger documentos_updated_at
   before update on veritum.documentos
   for each row execute function veritum.set_updated_at();
 
+-- ===========================================================================
+-- EXPEDIENTES
+--
+-- Cuando una cita queda pagada se crea automáticamente su expediente. El
+-- abogado registra el avance ahí.
+--
+-- Uno por CITA pagada, no uno por persona: un mismo patrón puede tener dos
+-- asuntos distintos y mezclarlos en un solo expediente sería peor que
+-- separarlos.
+-- ===========================================================================
+
+create table if not exists veritum.expedientes (
+  id uuid primary key default gen_random_uuid(),
+  appointment_id uuid not null unique references veritum.appointments (id) on delete cascade,
+  folio text not null,
+
+  -- Desnormalizado para poder cruzar documentos sin pasar por appointments.
+  -- ADMITE NULO A PROPÓSITO: el formulario acepta teléfonos de 8 dígitos y la
+  -- clave canónica exige 10. Un check obligatorio haría fallar el UPDATE que
+  -- confirma el pago, el webhook devolvería 500, Stripe reintentaría sin fin y
+  -- el cliente pagaría sin recibir folio ni correo.
+  telefono_normalizado text,
+
+  estado text not null default 'nuevo'
+    check (estado in ('nuevo', 'en_analisis', 'con_estrategia', 'en_representacion', 'cerrado', 'descartado')),
+  asunto text,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists expedientes_estado_idx on veritum.expedientes (estado, updated_at desc);
+create index if not exists expedientes_telefono_idx on veritum.expedientes (telefono_normalizado);
+create index if not exists expedientes_folio_idx on veritum.expedientes (folio);
+
+-- ---------------------------------------------------------------------------
+-- El avance, como bitácora y no como un campo que se sobreescribe: el
+-- expediente de un despacho necesita historial, no la última versión.
+-- ---------------------------------------------------------------------------
+create table if not exists veritum.expediente_notas (
+  id bigserial primary key,
+  expediente_id uuid not null references veritum.expedientes (id) on delete cascade,
+  autor text not null,
+  -- Estado al que se movió con esta nota, si hubo cambio.
+  estado_nuevo text,
+  nota text not null check (length(trim(nota)) > 0),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists expediente_notas_idx on veritum.expediente_notas (expediente_id, created_at desc);
+
+-- ---------------------------------------------------------------------------
+-- Creación automática del expediente
+--
+-- Va en un trigger y no en el webhook de Stripe: el webhook se reintenta y se
+-- puede olvidar en un camino nuevo (una cita registrada a mano, por ejemplo);
+-- un trigger no se olvida.
+--
+-- Dos triggers separados porque uno solo que consultara OLD fallaría en el
+-- INSERT, donde OLD no existe.
+-- ---------------------------------------------------------------------------
+create or replace function veritum.crear_expediente() returns trigger
+language plpgsql
+security definer
+set search_path = veritum, public
+as $$
+declare
+  v_norm text;
+begin
+  if new.status <> 'pagada' then
+    return new;
+  end if;
+
+  -- Solo si tiene los 10 dígitos; si no, se deja nulo y el panel lo resuelve.
+  v_norm := right(regexp_replace(coalesce(new.telefono, ''), '[^0-9]', '', 'g'), 10);
+  if v_norm !~ '^[0-9]{10}$' then
+    v_norm := null;
+  end if;
+
+  insert into veritum.expedientes (appointment_id, folio, telefono_normalizado, asunto)
+  values (new.id, new.folio, v_norm, new.area)
+  on conflict (appointment_id) do nothing;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists appointments_expediente_ins on veritum.appointments;
+create trigger appointments_expediente_ins
+  after insert on veritum.appointments
+  for each row execute function veritum.crear_expediente();
+
+drop trigger if exists appointments_expediente_upd on veritum.appointments;
+create trigger appointments_expediente_upd
+  after update of status on veritum.appointments
+  for each row
+  -- `is distinct from` y no `coalesce(old.status, '')`: status es un enum y la
+  -- cadena vacía no es uno de sus valores.
+  when (new.status = 'pagada' and old.status is distinct from new.status)
+  execute function veritum.crear_expediente();
+
+drop trigger if exists expedientes_updated_at on veritum.expedientes;
+create trigger expedientes_updated_at
+  before update on veritum.expedientes
+  for each row execute function veritum.set_updated_at();
+
+-- ===========================================================================
+-- SOLICITUDES DE CAMBIO (cancelar o reprogramar)
+--
+-- El cliente SOLICITA desde /mi-cita; el despacho aplica. El horario NO se
+-- libera hasta que el despacho lo confirma, que es lo que se le dice al cliente
+-- en el correo: nada escondido.
+-- ===========================================================================
+
+create table if not exists veritum.solicitudes_cambio (
+  id uuid primary key default gen_random_uuid(),
+  appointment_id uuid not null references veritum.appointments (id) on delete cascade,
+  folio text not null,
+  tipo text not null check (tipo in ('cancelar', 'reprogramar')),
+  estado text not null default 'pendiente' check (estado in ('pendiente', 'aplicada', 'rechazada')),
+  motivo text,
+  -- Horario que propone el cliente cuando pide reprogramar.
+  slot_propuesto timestamptz,
+  resuelta_at timestamptz,
+  resuelta_por text,
+  notas text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Índice parcial: la cola del panel solo mira las pendientes.
+create index if not exists solicitudes_pendientes_idx
+  on veritum.solicitudes_cambio (created_at desc)
+  where estado = 'pendiente';
+create index if not exists solicitudes_cita_idx on veritum.solicitudes_cambio (appointment_id, created_at desc);
+
+drop trigger if exists solicitudes_updated_at on veritum.solicitudes_cambio;
+create trigger solicitudes_updated_at
+  before update on veritum.solicitudes_cambio
+  for each row execute function veritum.set_updated_at();
+
+-- ===========================================================================
+-- Cita registrada a mano
+--
+-- Para el cliente que paga por transferencia y para poder probar el portal sin
+-- pasar por Stripe. Queda con stripe_session_id nulo, que es lo que la
+-- distingue de una cita cobrada en línea.
+-- ===========================================================================
+create or replace function veritum.crear_cita_manual(
+  p_folio text,
+  p_slot_start timestamptz,
+  p_slot_end timestamptz,
+  p_nombre text,
+  p_correo text,
+  p_telefono text,
+  p_area text,
+  p_modalidad text,
+  p_producto_id text,
+  p_situacion text,
+  p_descripcion text,
+  p_precio_centavos integer,
+  p_moneda text,
+  p_credito_vigencia_dias integer
+) returns veritum.appointments
+language plpgsql
+security definer
+set search_path = veritum, public
+as $$
+declare
+  v_row veritum.appointments;
+begin
+  -- Mismo respeto al horario que la reserva en línea: si se solapa, no entra.
+  if exists (
+    select 1 from veritum.appointments
+     where status in ('pagada', 'pendiente_pago')
+       and slot_start < p_slot_end
+       and slot_end > p_slot_start
+  ) then
+    return null;
+  end if;
+
+  insert into veritum.appointments (
+    folio, status, origen, slot_start, slot_end, hold_expires_at,
+    nombre, correo, telefono, area, modalidad,
+    descripcion, precio_centavos, moneda, promo_aplicada,
+    aviso_version, consentimiento_at, utm,
+    producto_id, situacion, credito_vence_at, paid_at, notas
+  ) values (
+    p_folio, 'pagada', 'sitio', p_slot_start, p_slot_end, null,
+    p_nombre, p_correo, p_telefono, p_area, p_modalidad,
+    p_descripcion, p_precio_centavos, p_moneda, false,
+    'manual', now(), '{}'::jsonb,
+    p_producto_id, p_situacion,
+    now() + make_interval(days => greatest(1, coalesce(p_credito_vigencia_dias, 90))),
+    now(), 'Registrada a mano desde el panel.'
+  )
+  returning * into v_row;
+
+  return v_row;
+exception
+  when unique_violation then
+    return null;
+end;
+$$;
+
 -- ---------------------------------------------------------------------------
 -- Permisos: la API solo necesita entrar al esquema; RLS bloquea el resto.
 -- ---------------------------------------------------------------------------
@@ -730,6 +939,9 @@ alter table veritum.stripe_events enable row level security;
 alter table veritum.contactos enable row level security;
 alter table veritum.recordatorios enable row level security;
 alter table veritum.documentos enable row level security;
+alter table veritum.expedientes enable row level security;
+alter table veritum.expediente_notas enable row level security;
+alter table veritum.solicitudes_cambio enable row level security;
 
 -- ---------------------------------------------------------------------------
 -- Disponibilidad inicial de ejemplo (lunes a viernes, 10:00–14:00 y 16:00–18:00

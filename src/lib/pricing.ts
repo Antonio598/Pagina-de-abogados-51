@@ -2,12 +2,12 @@
 //
 // Los importes viven en content/productos.ts, no en variables de entorno: una
 // NEXT_PUBLIC_* se congela en el build y el Dockerfile no las declara todas como
-// ARG, así que una variable ausente dejaba la landing sin precio y sin
-// posibilidad de reservar. Ver el comentario de cabecera de content/productos.ts.
+// ARG, así que una variable ausente dejaba la landing sin precio. Ver el
+// comentario de cabecera de content/productos.ts.
 //
-// De entorno solo quedan los ids de precio de Stripe, que son opcionales.
+// De entorno solo salen los ids de precio de Stripe.
 
-import { MONEDA, productoODefecto, type Producto } from "@content/productos";
+import { MONEDA, productoODefecto, promocion, type Producto } from "@content/productos";
 
 export { MONEDA };
 
@@ -17,27 +17,42 @@ export const formatMoney = (centavos: number, moneda: string = MONEDA) =>
   );
 
 /**
- * Hay cobro disponible. Antes dependía de una variable de entorno; ahora los
- * importes son contenido versionado, así que el cobro está disponible siempre
- * que exista el catálogo. Se conserva como función para no cambiar los cuatro
- * lugares que la consultan.
+ * Hay cobro disponible. Se conserva como función para no cambiar los lugares
+ * que la consultan; los importes son contenido versionado, así que el cobro está
+ * disponible siempre que exista el catálogo.
  */
 export const cobroDisponible = () => true;
 
-/** Id de precio de Stripe del producto, si se configuró uno. */
+/** Id de precio de Stripe del servicio a precio normal. */
 export const stripePriceId = (producto: Producto): string | undefined =>
   process.env[producto.stripePriceEnv]?.trim() || undefined;
 
+/** Id de precio de Stripe del importe promocional. */
+export const stripePricePromoId = (): string | undefined => process.env[promocion.stripePriceEnv]?.trim() || undefined;
+
 /**
- * Precio que se va a cobrar. Lo decide SIEMPRE el servidor a partir del id de
- * producto: cualquier importe que mande el navegador se ignora.
+ * Precio que se va a cobrar. Lo decide SIEMPRE el servidor: el id de servicio y,
+ * si la promoción está vigente, el importe promocional. Cualquier importe que
+ * mande el navegador se ignora.
+ *
+ * `promoActiva` lo resuelve quien llama leyendo la cookie firmada (ver
+ * src/lib/promo-server.ts): esta función no toca cookies para poder usarse
+ * también desde sitios sin petición.
  */
-export const precioDe = (productoId: string | undefined | null) => {
+export const precioDe = (productoId: string | undefined | null, promoActiva = false) => {
   const producto = productoODefecto(productoId);
+  const conPromo = promoActiva && producto.id === promocion.productoId && Boolean(stripePricePromoId());
+  const centavos = conPromo ? promocion.precioCentavos : producto.precioCentavos;
+
   return {
     producto,
-    centavos: producto.precioCentavos,
+    centavos,
+    normalCentavos: producto.precioCentavos,
+    conPromo,
     moneda: MONEDA,
-    etiqueta: formatMoney(producto.precioCentavos),
+    etiqueta: formatMoney(centavos),
+    etiquetaNormal: formatMoney(producto.precioCentavos),
+    /** Id de precio de Stripe que corresponde a este cobro. */
+    priceId: conPromo ? stripePricePromoId() : stripePriceId(producto),
   };
 };

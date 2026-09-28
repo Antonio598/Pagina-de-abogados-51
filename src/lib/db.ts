@@ -192,3 +192,53 @@ export type Documento = {
 export const COLS_DOCUMENTO =
   "id, telefono_normalizado, appointment_id, folio, nombre_archivo, extension, mime, " +
   "tamano_bytes, sha256, subido_por, etiqueta, notas, eliminado_at, created_at, updated_at";
+
+export type EstadoExpediente =
+  | "nuevo"
+  | "en_analisis"
+  | "con_estrategia"
+  | "en_representacion"
+  | "cerrado"
+  | "descartado";
+
+/** Expediente de un asunto. Se crea solo cuando la cita queda pagada. */
+export type Expediente = {
+  id: string;
+  appointment_id: string;
+  folio: string;
+  /** Puede venir nulo: el formulario acepta teléfonos de 8 dígitos. */
+  telefono_normalizado: string | null;
+  estado: EstadoExpediente;
+  asunto: string | null;
+  created_at: Date;
+  updated_at: Date;
+};
+
+/** Una entrada de la bitácora de avance. Solo se añade, nunca se reescribe. */
+export type ExpedienteNota = {
+  id: number;
+  expediente_id: string;
+  autor: string;
+  estado_nuevo: string | null;
+  nota: string;
+  created_at: Date;
+};
+
+export type TipoSolicitud = "cancelar" | "reprogramar";
+export type EstadoSolicitud = "pendiente" | "aplicada" | "rechazada";
+
+/** Solicitud de cancelación o reprogramación pedida por el cliente. */
+export type SolicitudCambio = {
+  id: string;
+  appointment_id: string;
+  folio: string;
+  tipo: TipoSolicitud;
+  estado: EstadoSolicitud;
+  motivo: string | null;
+  slot_propuesto: Date | null;
+  resuelta_at: Date | null;
+  resuelta_por: string | null;
+  notas: string | null;
+  created_at: Date;
+  updated_at: Date;
+};

@@ -2,12 +2,24 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, CalendarClock, CalendarDays, FolderOpen, LogOut, NotebookText, Webhook } from "lucide-react";
+import {
+  BarChart3,
+  CalendarClock,
+  CalendarDays,
+  CalendarX2,
+  FolderKanban,
+  FolderOpen,
+  LogOut,
+  NotebookText,
+  Webhook,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/panel/citas", label: "Citas", icon: CalendarDays },
   { href: "/panel/resumenes", label: "Resúmenes", icon: NotebookText },
+  { href: "/panel/expedientes", label: "Expedientes", icon: FolderKanban },
+  { href: "/panel/cancelaciones", label: "Cambios", icon: CalendarX2 },
   { href: "/panel/metricas", label: "Métricas", icon: BarChart3 },
   { href: "/panel/disponibilidad", label: "Horarios", icon: CalendarClock },
   { href: "/panel/archivos", label: "Archivos", icon: FolderOpen },
@@ -25,8 +37,8 @@ export const PanelNav = ({ usuario }: { usuario: string }) => {
   };
 
   return (
-    <div className="flex items-center gap-1 sm:gap-3">
-      <nav aria-label="Panel">
+    <div className="flex min-w-0 items-center gap-1 sm:gap-3">
+      <nav aria-label="Panel" className="min-w-0 overflow-x-auto">
         <ul className="flex items-center gap-1">
           {links.map((l) => {
             const activo = pathname.startsWith(l.href);
@@ -37,7 +49,7 @@ export const PanelNav = ({ usuario }: { usuario: string }) => {
                   href={l.href}
                   aria-current={activo ? "page" : undefined}
                   className={cn(
-                    "inline-flex min-h-10 items-center gap-2 rounded-brand px-2.5 text-[0.9rem] font-medium transition-colors sm:px-3",
+                    "inline-flex min-h-10 shrink-0 items-center gap-2 rounded-brand px-2.5 text-[0.9rem] font-medium transition-colors sm:px-3",
                     activo ? "bg-azul text-blanco" : "text-azul hover:bg-azul/5",
                   )}
                 >
@@ -53,7 +65,7 @@ export const PanelNav = ({ usuario }: { usuario: string }) => {
       <button
         type="button"
         onClick={salir}
-        className="inline-flex min-h-10 items-center gap-2 rounded-brand px-2.5 text-[0.9rem] text-azul hover:bg-azul/5"
+        className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-brand px-2.5 text-[0.9rem] text-azul hover:bg-azul/5"
       >
         <LogOut className="size-4" strokeWidth={1.75} aria-hidden />
         <span className="hidden sm:inline">Salir</span>

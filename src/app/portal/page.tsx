@@ -14,6 +14,7 @@ import {
 import { normalizarTelefono } from "@/lib/seguimiento";
 import { dbReady } from "@/lib/db";
 import { portal } from "@content/portal";
+import { FOLIO_RE } from "@/lib/portal";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +67,11 @@ export default async function PortalAccesoPage({ searchParams }: PageProps<"/por
   const sp = await searchParams;
   const e = typeof sp.e === "string" ? sp.e : undefined;
   const a = portal.acceso;
+  // El folio llega precargado desde la confirmación del pago y desde el correo.
+  // No añade riesgo: es un dato que el visitante ya tiene, y sigue haciendo
+  // falta el teléfono del titular. El camino de acceso no cambia en nada.
+  const folioParam = typeof sp.folio === "string" ? sp.folio.trim().toUpperCase() : "";
+  const folioPrecargado = FOLIO_RE.test(folioParam) ? folioParam : "";
 
   const mensaje =
     e === "bloqueado" ? a.bloqueado : e === "config" ? a.noConfigurado : e ? a.error : undefined;
@@ -101,6 +107,7 @@ export default async function PortalAccesoPage({ searchParams }: PageProps<"/por
               autoComplete="tel"
               required
               maxLength={25}
+              autoFocus={Boolean(folioPrecargado)}
               className="w-full rounded-brand border border-gris bg-blanco px-4 py-3 text-base text-carbon transition-[border-color] focus:border-azul focus:outline-none focus-visible:outline-2 focus-visible:outline-dorado"
             />
             <p className="text-sm text-carbon/70">{a.telefonoHint}</p>
@@ -114,6 +121,7 @@ export default async function PortalAccesoPage({ searchParams }: PageProps<"/por
               id="folio"
               name="folio"
               type="text"
+              defaultValue={folioPrecargado}
               required
               maxLength={12}
               placeholder="VER-XXXXXX"

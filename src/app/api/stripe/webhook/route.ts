@@ -41,7 +41,7 @@ const correoCliente = (cita: Appointment) => {
   const producto = productoPorId(cita.producto_id);
   const enlace = enlaceDe(cita);
   const checklist = checklistDe(cita.situacion);
-  const portalUrl = `${siteUrl()}/portal`;
+  const portalUrl = `${siteUrl()}/portal?folio=${encodeURIComponent(cita.folio)}`;
 
   // Si la cita trae situación, el checklist de su situación es más útil que la
   // lista genérica de "qué preparar" del sitio.
@@ -72,15 +72,16 @@ const correoCliente = (cita: Appointment) => {
         : "Te enviaremos el enlace de la videollamada por correo antes de tu sesión."
     }</p>
 
+    ${producto?.requiereDocumentos ? `
     <p style="margin:0 0 8px;color:#0D224C;font-weight:600">Sube tu documentación</p>
     <p style="margin:0 0 12px;color:#292A2D">
       Entra a <a href="${portalUrl}" style="color:#0D224C">${portalUrl}</a> con tu teléfono y el folio
-      <strong>${cita.folio}</strong>, y carga lo que tengas de tu asunto.${
-        producto?.requiereDocumentos
-          ? " Para la revisión prioritaria necesitamos tu documentación antes de la sesión: revisaremos lo que cargues y te confirmaremos por escrito el alcance delimitado de la revisión."
-          : ""
-      }
+      <strong>${cita.folio}</strong>, y carga lo que tengas de tu asunto.
+      Necesitamos tu documentación antes de la sesión: revisaremos lo que cargues y te confirmaremos por escrito el
+      alcance delimitado de la revisión.
     </p>
+    ` : ""}
+
     <p style="margin:0 0 8px;color:#0D224C;font-weight:600">${preparar.titulo}</p>
     <ul style="margin:0 0 20px;padding-left:18px;color:#292A2D">
       ${preparar.items.map((b) => `<li style="margin-bottom:6px">${b}</li>`).join("")}
@@ -93,6 +94,17 @@ const correoCliente = (cita: Appointment) => {
         Importe a descontar: <strong>${formatMoney(cita.precio_centavos, cita.moneda)}</strong>${
           fecha(cita.credito_vence_at) ? ` · vigente hasta el ${fecha(cita.credito_vence_at)}` : ""
         }
+      </p>
+    </div>
+
+    <div style="border-top:1px solid #E5E1D8;padding-top:16px;margin-bottom:20px">
+      <p style="margin:0 0 6px;color:#0D224C;font-weight:600">Si necesitas cancelar o mover tu cita</p>
+      <p style="margin:0 0 6px;color:#292A2D">
+        Solicítalo aquí: <a href="${siteUrl()}/mi-cita?folio=${encodeURIComponent(cita.folio)}" style="color:#0D224C">${siteUrl()}/mi-cita</a>
+      </p>
+      <p style="margin:0;color:#292A2D">
+        Recibimos tu solicitud y te confirmamos por correo.
+        <strong>Tu horario no se libera hasta que la confirmemos.</strong>
       </p>
     </div>
 
@@ -124,6 +136,7 @@ const correoInterno = (cita: Appointment) =>
         "Crédito vigente hasta": fecha(cita.credito_vence_at),
         "Enlace de sesión": enlaceDe(cita) ?? "SIN DEFINIR",
         "Pago (Stripe)": cita.stripe_payment_intent,
+        Panel: `${siteUrl()}/panel/citas?f=todas&cita=${cita.id}`,
       })}
     </table>`,
   );

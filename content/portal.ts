@@ -142,3 +142,51 @@ export const checklistGenerico: Checklist = {
 
 export const checklistDe = (situacion: string | null | undefined): Checklist =>
   (situacion && checklists[situacion as SituacionId]) || checklistGenerico;
+
+// ---------------------------------------------------------------------------
+// Cancelar o reprogramar una cita (/mi-cita)
+//
+// El cliente SOLICITA; el despacho aplica. Su horario no se libera hasta que se
+// confirma, y aquí se le dice con esas palabras: la regla no se esconde.
+// ---------------------------------------------------------------------------
+
+export const miCita = {
+  acceso: {
+    eyebrow: "Tu cita",
+    title: "Cancelar o mover tu cita",
+    text: "Con tu teléfono y el folio que recibiste al confirmar tu pago puedes pedir que cancelemos tu cita o que la movamos a otro horario.",
+    telefonoLabel: "Teléfono",
+    telefonoHint: "El mismo que registraste al agendar.",
+    folioLabel: "Folio",
+    folioHint: "Lo recibiste al pagar, con el formato VER-XXXXXX.",
+    cta: "Ver mi cita",
+    // Un solo mensaje para todos los fallos: no revela si el folio existe.
+    error:
+      "No encontramos una cita con esos datos. Revisa tu folio (lo recibiste al pagar, con el formato VER-XXXXXX) y el teléfono tal como lo registraste.",
+    bloqueado: "Demasiados intentos. Por seguridad, espera unos minutos antes de volver a intentarlo.",
+    noConfigurado: "Esta página no está disponible en este momento. Escríbenos por los canales de contacto.",
+  },
+
+  detalle: {
+    eyebrow: "Tu cita",
+    title: "Esto es lo que tenemos registrado",
+    salir: "Salir",
+    cancelarTitulo: "Cancelar la cita",
+    cancelarTexto: "Dinos por qué y lo revisamos. Te confirmamos por correo.",
+    cancelarCta: "Solicitar cancelación",
+    moverTitulo: "Mover la cita",
+    moverTexto: "Indícanos qué día y hora te vendrían mejor y buscamos el hueco más cercano.",
+    moverCta: "Solicitar cambio de horario",
+    motivoLabel: "Motivo",
+    motivoHint: "Opcional, pero nos ayuda a resolverlo más rápido.",
+    fechaLabel: "Día y hora que prefieres",
+    // La regla, dicha en voz alta.
+    aviso:
+      "Tu horario NO se libera al enviar la solicitud: queda reservado hasta que te confirmemos el cambio por correo.",
+    yaPendiente:
+      "Ya tenemos una solicitud tuya en revisión para esta cita. Te escribiremos en cuanto la resolvamos; no hace falta enviarla otra vez.",
+    ok: "Recibimos tu solicitud. Te confirmamos por correo.",
+    errorEnvio: "No pudimos registrar tu solicitud. Inténtalo de nuevo o escríbenos.",
+    pasada: "Esta cita ya ocurrió. Si necesitas algo más, escríbenos por los canales de contacto.",
+  },
+} as const;

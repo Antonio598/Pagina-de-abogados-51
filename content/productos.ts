@@ -88,6 +88,30 @@ export const productos: readonly Producto[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Precio de lanzamiento por tiempo limitado
+//
+// NO es un tercer servicio: es el mismo servicio prioritario con otro id de
+// precio en Stripe. Se aplica solo durante los primeros minutos desde que el
+// visitante abrió la landing, y al expirar Stripe cobra el precio normal: el
+// reloj no es decoración.
+//
+// Los minutos y el importe son literales por la misma razón que los precios de
+// arriba: una variable de entorno ausente en el build los dejaría en blanco.
+// ---------------------------------------------------------------------------
+export const promocion = {
+  productoId: "revision-prioritaria" as ProductoId,
+  minutos: 5,
+  precioCentavos: 199000,
+  stripePriceEnv: "STRIPE_PRICE_REVISION_PROMO_ID",
+  etiqueta: "Precio de lanzamiento",
+  titulo: "Revisión prioritaria al precio de la asesoría",
+  texto: "Durante los próximos minutos, la Revisión laboral prioritaria cuesta lo mismo que la asesoría. Al terminar la cuenta, vuelve a su precio normal.",
+  aviso: (minutos: number) =>
+    `Este precio se mantiene ${minutos} minutos desde que abriste esta página. Después vuelve a $3,490.`,
+  expirada: "La oferta terminó. El precio mostrado es el vigente.",
+} as const;
+
 export const productoPorId = (id: string | undefined | null): Producto | undefined =>
   productos.find((p) => p.id === id);
 

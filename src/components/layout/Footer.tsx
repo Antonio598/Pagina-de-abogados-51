@@ -27,7 +27,7 @@ export const Footer = () => {
             <ul className="mt-4 space-y-1">
               {footerNav.map((l) => (
                 <li key={l.href}>
-                  <Link href={l.href} className="inline-block py-1.5 text-marfil/85 underline-offset-4 hover:text-blanco hover:underline">
+                  <Link href={l.href} className="inline-flex min-h-10 items-center text-marfil/85 underline-offset-4 hover:text-blanco hover:underline">
                     {l.label}
                   </Link>
                 </li>
@@ -48,7 +48,7 @@ export const Footer = () => {
                 <ul className="mt-4 flex flex-wrap gap-4">
                   {socialLinks.map((s) => (
                     <li key={s.name}>
-                      <a href={s.href} target="_blank" rel="noopener noreferrer" className="inline-block py-1.5 text-marfil/85 hover:text-blanco hover:underline">
+                      <a href={s.href} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center text-marfil/85 hover:text-blanco hover:underline">
                         {s.name}
                       </a>
                     </li>
@@ -60,7 +60,7 @@ export const Footer = () => {
             <ul className="mt-3 space-y-0.5">
               {legalNav.map((l) => (
                 <li key={l.href}>
-                  <Link href={l.href} className="inline-block py-1.5 text-sm text-marfil/80 hover:text-blanco hover:underline">
+                  <Link href={l.href} className="inline-flex min-h-10 items-center text-sm text-marfil/80 hover:text-blanco hover:underline">
                     {l.label}
                   </Link>
                 </li>

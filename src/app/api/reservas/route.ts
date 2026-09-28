@@ -12,7 +12,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { HOLD_MINUTES, isSlotOffered, nuevoFolio } from "@/lib/booking";
 import { db, dbReady, fn, t, type Appointment } from "@/lib/db";
-import { cobroDisponible, precioDe, stripePriceId } from "@/lib/pricing";
+import { cobroDisponible, precioDe } from "@/lib/pricing";
+import { promoAplicaA } from "@/lib/promo-server";
 import { stripe, stripeReady } from "@/lib/stripe";
 import { reservaSchema } from "@/lib/validation";
 import { creditoVigenciaDias } from "@content/productos";
@@ -77,8 +78,13 @@ export async function POST(req: NextRequest) {
 
   const data = parsed.data;
 
-  // Precio y anticipación: los decide el catálogo, nunca el cliente.
-  const precio = precioDe(data.producto);
+  // Precio y anticipación: los decide el servidor, nunca el cliente.
+  //
+  // La promoción se comprueba AQUÍ releyendo la cookie firmada: si expiró, se
+  // cobra el precio normal aunque el navegador siga mostrando el de oferta. Es
+  // lo que hace que el reloj sea verdad y no decoración.
+  const promoVigente = await promoAplicaA(data.producto);
+  const precio = precioDe(data.producto, promoVigente);
   const producto = precio.producto;
 
   // El horario debe seguir siendo ofertable para ESTE servicio: el prioritario
@@ -113,7 +119,7 @@ export async function POST(req: NextRequest) {
         ${data.nombre}, ${data.correo}, ${data.telefono}, ${data.asunto},
         ${MODALIDAD}, ${data.entidad || null}, ${data.municipio || null},
         ${data.descripcion || null}, ${data.urgente || null}, ${null},
-        ${precio.centavos}, ${precio.moneda}, ${false},
+        ${precio.centavos}, ${precio.moneda}, ${precio.conPromo},
         ${process.env.PRIVACY_NOTICE_VERSION ?? "pendiente"}, ${sql.json(data.utm ?? {})},
         ${producto.id}, ${data.situacion ?? null}, ${creditoVigenciaDias}
       )`;
@@ -130,7 +136,8 @@ export async function POST(req: NextRequest) {
   }
 
   const volverA = data.origen === "landing" ? "/consulta/agendar" : "/agenda";
-  const priceId = stripePriceId(producto);
+  // El id de precio ya viene resuelto según la promoción.
+  const priceId = precio.priceId;
 
   try {
     const session = await stripe().checkout.sessions.create({
@@ -161,6 +168,7 @@ export async function POST(req: NextRequest) {
         origen: cita.origen,
         producto: producto.id,
         situacion: data.situacion ?? "",
+        promo: String(precio.conPromo),
         slot_start: cita.slot_start.toISOString(),
       },
       payment_intent_data: {

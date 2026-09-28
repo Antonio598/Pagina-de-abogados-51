@@ -1,6 +1,4 @@
-import { Info } from "lucide-react";
 import type { LegalDoc } from "@content/legal";
-import { legalPending } from "@content/legal";
 import { site } from "@content/site";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { PageHero } from "@/components/ui/PageHero";
@@ -51,14 +49,12 @@ export const LegalPage = ({ doc }: { doc: LegalDoc }) => (
             ))
           ) : (
             <>
-              <Reveal className="flex gap-4 rounded-brand border border-dorado/40 bg-marfil p-6">
-                <Info className="mt-0.5 size-5 shrink-0 text-dorado-2" strokeWidth={1.5} aria-hidden />
-                <p className="text-carbon/90">{legalPending}</p>
-              </Reveal>
               {/* Estructura de secciones lista para recibir el texto de VERITUM (content/legal.ts → body). */}
-              <ol className="mt-10 space-y-6">
+              <ol className="space-y-6">
                 {doc.sections.map((s, i) => (
-                  <li key={s}>
+                  // Clave por índice: dos secciones podrían llamarse igual y la
+                  // reconciliación de React se corrompería en silencio.
+                  <li key={`${i}-${s}`}>
                     <h2 id={`seccion-${i + 1}`} className="font-display type-h3 scroll-mt-28 text-azul/70">
                       {s}
                     </h2>

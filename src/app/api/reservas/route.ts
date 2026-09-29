@@ -15,6 +15,7 @@ import { db, dbReady, fn, t, type Appointment } from "@/lib/db";
 import { cobroDisponible, precioDe } from "@/lib/pricing";
 import { promoAplicaA } from "@/lib/promo-server";
 import { stripe, stripeReady } from "@/lib/stripe";
+import { siteUrlDesde } from "@/lib/site-url";
 import { reservaSchema } from "@/lib/validation";
 import { creditoVigenciaDias } from "@content/productos";
 import { site } from "@content/site";
@@ -38,9 +39,11 @@ const rateLimited = (ip: string) => {
   return false;
 };
 
-const siteUrl = () => (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000").replace(/\/$/, "");
+// La dirección de regreso se deduce de la petición si falta la variable: antes
+// caía en localhost y Stripe mandaba al comprador ahí después de pagar.
 
 export async function POST(req: NextRequest) {
+  const siteUrl = () => siteUrlDesde(req.headers);
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "0.0.0.0";
   if (rateLimited(ip)) {
     return NextResponse.json({ ok: false, error: "Demasiadas solicitudes. Inténtalo más tarde." }, { status: 429 });

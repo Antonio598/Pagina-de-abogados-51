@@ -14,6 +14,8 @@ import {
 } from "@/lib/seguimiento";
 import { creditoRepresentacion, productos, situaciones } from "@content/productos";
 import { formatMoney } from "@/lib/pricing";
+import { headers } from "next/headers";
+import { siteUrlDesde, siteUrlOrigen } from "@/lib/site-url";
 import { mailTransporte } from "@/lib/mailer";
 import { portalConfigurado } from "@/lib/portal-auth";
 import { promoConfigurada } from "@/lib/promo-server";
@@ -34,7 +36,7 @@ async function reiniciar(formData: FormData) {
   revalidatePath("/panel/api");
 }
 
-const baseUrl = () => (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000").replace(/\/$/, "");
+
 
 const horas = (minutos: number) => {
   if (minutos % 1440 === 0) return `${minutos / 1440} día${minutos / 1440 === 1 ? "" : "s"}`;
@@ -85,7 +87,10 @@ const distintivo: Record<string, string> = {
 };
 
 export default async function ApiPage() {
-  const url = baseUrl();
+  // La dirección efectiva, deducida de esta misma petición si hace falta.
+  const cabeceras = await headers();
+  const url = siteUrlDesde(cabeceras);
+  const origenUrl = siteUrlOrigen(cabeceras);
   const hookHost = (() => {
     const w = webhookUrl();
     if (!w) return null;
@@ -103,6 +108,12 @@ export default async function ApiPage() {
   ]);
 
   const revision = [
+    {
+      que: "Dirección del sitio",
+      para: `NEXT_PUBLIC_SITE_URL · ahora: ${url} (de ${origenUrl})`,
+      ok: origenUrl === "variable de entorno",
+      critico: true,
+    },
     { que: "Base de datos", para: "DATABASE_URL", ok: dbReady, critico: true },
     {
       que: "Correo",
@@ -442,6 +453,48 @@ export default async function ApiPage() {
           <span>
             El vencimiento lo calcula siempre la base de datos comparando contra la hora real, no un temporizador dentro
             de la aplicación: reiniciar o desplegar el sitio no pierde ningún recordatorio.
+          </span>
+        </p>
+      </Seccion>
+
+      <Seccion titulo="Las dos URL de Stripe (no son la misma)">
+        <p className="mt-3 text-[0.95rem] text-carbon/85">
+          Se confunden con facilidad y hacen cosas distintas. El comprador nunca ve la del webhook.
+        </p>
+
+        <p className="eyebrow mt-5">1 · A dónde va el comprador al pagar</p>
+        <p className="mt-1.5 text-[0.95rem] text-carbon/85">
+          A la página de pago de Stripe (<code className="text-azul">checkout.stripe.com</code>). No se configura: la
+          crea Stripe en cada compra. Al terminar, vuelve aquí:
+        </p>
+        <Codigo>{`${url}/consulta/confirmacion`}</Codigo>
+
+        <p className="eyebrow mt-5">2 · La URL del webhook, para pegar en Stripe</p>
+        <p className="mt-1.5 text-[0.95rem] text-carbon/85">
+          La llaman los servidores de Stripe por detrás, cuando el pago se completa. Sin ella ninguna cita se confirma,
+          no se manda correo y el cliente no recibe folio. Debe apuntar al dominio de <strong>esta</strong> aplicación,
+          no al de la base de datos.
+        </p>
+        <Codigo>{`${url}/api/stripe/webhook`}</Codigo>
+        <p className="mt-3 text-sm text-carbon/75">
+          Eventos que hay que marcar: <code className="text-azul">checkout.session.completed</code>,{" "}
+          <code className="text-azul">checkout.session.expired</code>,{" "}
+          <code className="text-azul">checkout.session.async_payment_succeeded</code> y{" "}
+          <code className="text-azul">checkout.session.async_payment_failed</code>.
+        </p>
+
+        <p className="mt-4 flex gap-2 rounded-brand border border-dorado/40 bg-marfil p-4 text-[0.92rem] text-carbon/90">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-dorado-2" strokeWidth={1.75} aria-hidden />
+          <span>
+            Esta dirección se está tomando de <strong>{origenUrl}</strong>.
+            {origenUrl !== "variable de entorno" && (
+              <>
+                {" "}
+                Conviene poner <code className="text-azul">NEXT_PUBLIC_SITE_URL</code> en EasyPanel{" "}
+                <strong>también como argumento de build</strong>: si solo va como variable de entorno, queda vacía en la
+                imagen, porque las <code className="text-azul">NEXT_PUBLIC_*</code> se congelan al compilar.
+              </>
+            )}
           </span>
         </p>
       </Seccion>

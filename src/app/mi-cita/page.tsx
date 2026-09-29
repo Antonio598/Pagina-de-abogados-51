@@ -14,6 +14,7 @@ import {
   type CitaMiCita,
 } from "@/lib/solicitudes";
 import { FOLIO_RE } from "@/lib/portal";
+import { siteUrl } from "@/lib/site-url";
 import { productoPorId, situacionLabel } from "@content/productos";
 import { miCita } from "@content/portal";
 import { site } from "@content/site";
@@ -48,7 +49,7 @@ const ipDe = async () => {
 /** Vive fuera del render: toma la hora actual, y eso no puede ocurrir al pintar. */
 const yaOcurrio = (d: Date) => d.getTime() < Date.now();
 
-const siteUrl = () => (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000").replace(/\/$/, "");
+
 
 /**
  * Registra la solicitud. No hay sesión: se vuelve a comprobar teléfono + folio
@@ -98,7 +99,7 @@ async function solicitar(formData: FormData) {
        <p style="margin:0 0 6px"><strong>Cita actual:</strong> ${esc(formatDateTimeLong(cita.slot_start))}</p>
        ${slotPropuesto ? `<p style="margin:0 0 6px"><strong>Prefiere:</strong> ${esc(formatDateTimeLong(slotPropuesto))}</p>` : ""}
        ${motivo.trim() ? `<p style="margin:0 0 6px"><strong>Motivo:</strong> ${esc(motivo.trim())}</p>` : ""}
-       <p style="margin:16px 0 0"><a href="${siteUrl()}/panel/cancelaciones" style="color:#0D224C">Resolverla en el panel</a></p>
+       <p style="margin:16px 0 0"><a href="${await siteUrl()}/panel/cancelaciones" style="color:#0D224C">Resolverla en el panel</a></p>
        <p style="margin:12px 0 0;color:#6b6b6b;font-size:12px">El horario sigue reservado hasta que se aplique.</p>`,
     ),
     idempotencyKey: `solicitud-${creada!.id}`,

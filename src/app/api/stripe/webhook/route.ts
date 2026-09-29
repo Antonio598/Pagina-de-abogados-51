@@ -13,6 +13,7 @@ import { formatDateOnly, formatDateTimeLong, SLOT_MINUTES } from "@/lib/booking"
 import { db, dbReady, t, type Appointment } from "@/lib/db";
 import { filas, layout, sendMail } from "@/lib/mailer";
 import { formatMoney } from "@/lib/pricing";
+import { siteUrlDesde } from "@/lib/site-url";
 import { stripe, stripeReady } from "@/lib/stripe";
 import { process as proceso } from "@content/process";
 import { site } from "@content/site";
@@ -30,7 +31,10 @@ const areaLabel: Record<string, string> = {
   otro: "Otro",
 };
 
-const siteUrl = () => (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://veritum.com.mx").replace(/\/$/, "");
+// Los enlaces del correo (portal y /mi-cita) tienen que apuntar al dominio real.
+// Stripe llama al webhook por la dirección pública, así que su Host sirve de
+// respaldo cuando la variable de entorno no llegó al build.
+let siteUrl = () => "https://veritum.com.mx";
 
 const enlaceDe = (cita: Appointment) => cita.enlace_sesion ?? process.env.MEETING_URL?.trim() ?? null;
 
@@ -191,6 +195,11 @@ const liberar = async (session: Stripe.Checkout.Session) => {
 };
 
 export async function POST(req: NextRequest) {
+  // Los enlaces del correo salen de aquí. Stripe llama al webhook por la
+  // dirección pública, así que su Host sirve de respaldo cuando la variable de
+  // entorno no llegó al build.
+  siteUrl = () => siteUrlDesde(req.headers);
+
   if (!stripeReady() || !dbReady || !process.env.STRIPE_WEBHOOK_SECRET) {
     console.error("[webhook] Falta STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET o DATABASE_URL.");
     return NextResponse.json({ ok: false }, { status: 503 });

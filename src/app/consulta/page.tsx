@@ -9,11 +9,11 @@ import { formatMoney } from "@/lib/pricing";
 import { getPromo } from "@/lib/promo-server";
 import { getCupoSemana } from "@/lib/booking";
 import { dbReady } from "@/lib/db";
-import { pad2 } from "@/lib/utils";
+import { cn, pad2 } from "@/lib/utils";
 import { Accordion } from "@/components/ui/Accordion";
 import { VideoBlock } from "@/components/landing/VideoBlock";
 import { AgenteIaLink } from "@/components/landing/AgenteIaLink";
-import { CountUp, ReadingProgress, SpotlightCard, TrazoIcono, WordReveal } from "@/components/landing/Efectos";
+import { ReadingProgress, SpotlightCard, TrazoIcono, WordReveal } from "@/components/landing/Efectos";
 import { EquipoBlock } from "@/components/landing/EquipoBlock";
 import { ExitIntent } from "@/components/landing/ExitIntent";
 import { RevelarSecciones } from "@/components/landing/RevelarSecciones";
@@ -327,7 +327,14 @@ export default async function LandingPage() {
 
         <div className="mt-8 space-y-4" data-stagger="">
           {productos.map((p) => (
-            <div key={p.id} className="borde-vivo rounded-brand border border-gris bg-blanco p-5" data-reveal="">
+            <div
+              key={p.id}
+              className={cn("borde-vivo rounded-brand border bg-blanco p-5", p.destacado ? "resalte-oro" : "border-gris")}
+              // data-activo deja encendido el borde dorado que en las demás
+              // tarjetas solo aparece al pasar el cursor.
+              data-activo={p.destacado ? "" : undefined}
+              data-reveal=""
+            >
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <h3 className="font-display text-[1.15rem] leading-snug text-azul">{p.nombre}</h3>
                 <p className="text-right">
@@ -379,53 +386,6 @@ export default async function LandingPage() {
               </MagneticLink>
             </div>
           ))}
-        </div>
-
-        {/* El crédito de representación, junto a los precios y los botones */}
-        <div className="mt-6 rounded-brand border border-dorado bg-blanco p-5" data-reveal="">
-          <p className="eyebrow text-dorado-2">El beneficio</p>
-          <h3 className="font-display mt-2 text-[1.25rem] leading-snug text-azul">{creditoRepresentacion.titulo}</h3>
-          <p className="mt-3 text-[0.98rem] text-carbon/85">{creditoRepresentacion.texto}</p>
-
-          <div className="mt-5 rounded-brand bg-marfil p-4">
-            <p className="eyebrow">{creditoRepresentacion.ejemplo.titulo}</p>
-            <dl className="mt-3 space-y-1.5 text-[0.95rem]">
-              <div className="flex justify-between gap-4">
-                <dt className="text-carbon/85">Tu asesoría</dt>
-                <dd className="tabular-nums text-carbon/85">
-                  {formatMoney(creditoRepresentacion.ejemplo.asesoriaCentavos)}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-4">
-                <dt className="text-carbon/85">Honorarios de representación</dt>
-                <dd className="tabular-nums text-carbon/85">
-                  {formatMoney(creditoRepresentacion.ejemplo.honorariosCentavos)}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-4">
-                <dt className="text-carbon/85">Se descuenta</dt>
-                <dd className="tabular-nums text-dorado-2">
-                  − {formatMoney(creditoRepresentacion.ejemplo.asesoriaCentavos)}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-4 border-t border-gris pt-2">
-                <dt className="font-medium text-azul">Saldo de honorarios</dt>
-                <dd className="font-display text-[1.25rem] leading-none text-azul">
-                  <CountUp hasta={creditoRepresentacion.ejemplo.saldoCentavos / 100} moneda="MXN" />
-                </dd>
-              </div>
-            </dl>
-            <p className="mt-3 text-xs text-carbon/70">{creditoRepresentacion.ejemplo.nota}</p>
-          </div>
-
-          <ul className="mt-5 space-y-2">
-            {creditoRepresentacion.condiciones.map((c) => (
-              <li key={c} className="flex gap-2.5 text-[0.9rem] text-carbon/80">
-                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-dorado" aria-hidden />
-                <span>{c}</span>
-              </li>
-            ))}
-          </ul>
         </div>
       </section>
 

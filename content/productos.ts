@@ -45,6 +45,8 @@ export type Producto = {
   stripePriceEnv: string;
   /** Aviso obligatorio junto al precio, si el servicio lo necesita. */
   aviso?: string;
+  /** Se resalta en la landing como el servicio recomendado. */
+  destacado?: boolean;
 };
 
 export const productos: readonly Producto[] = [
@@ -67,7 +69,7 @@ export const productos: readonly Producto[] = [
   },
   {
     id: "revision-prioritaria",
-    nombre: "Revisión laboral prioritaria",
+    nombre: "Revisión documental prioritaria",
     precioCentavos: 349000,
     duracionMinutos: 60,
     // 48 horas: es el tiempo que se necesita para revisar la documentación
@@ -79,8 +81,10 @@ export const productos: readonly Producto[] = [
       "Revisión de la documentación que cargues en tu portal, con alcance delimitado.",
       "Videollamada de hasta 60 minutos para explicarte lo que encontramos.",
       "Identificación de plazos y de lo que está en juego según tus documentos.",
+      "Cálculo de riesgo monetario de tu negocio.",
       "Los siguientes pasos concretos, por escrito, al terminar.",
     ],
+    destacado: true,
     requiereDocumentos: true,
     stripePriceEnv: "STRIPE_PRICE_REVISION_ID",
     aviso:
@@ -106,7 +110,7 @@ export const promocion = {
   stripePriceEnv: "STRIPE_PRICE_REVISION_PROMO_ID",
   etiqueta: "Precio de lanzamiento",
   titulo: "Revisión prioritaria al precio de la asesoría",
-  texto: "Durante los próximos minutos, la Revisión laboral prioritaria cuesta lo mismo que la asesoría. Al terminar la cuenta, vuelve a su precio normal.",
+  texto: "Durante los próximos minutos, la Revisión documental prioritaria cuesta lo mismo que la asesoría. Al terminar la cuenta, vuelve a su precio normal.",
   aviso: (minutos: number) =>
     `Este precio se mantiene ${minutos} minutos desde que abriste esta página. Después vuelve a $3,490.`,
   expirada: "La oferta terminó. El precio mostrado es el vigente.",

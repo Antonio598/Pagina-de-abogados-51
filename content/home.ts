@@ -2,7 +2,7 @@
 
 export const home = {
   hero: {
-    title: "Asesoría legal clara para tomar decisiones con confianza",
+    title: "Asesoría legal para tomar decisiones con confianza",
     text: "Analizamos tu situación, explicamos tus opciones y construimos una estrategia legal con acompañamiento cercano para personas, trabajadores y empresas de todo México, por videollamada.",
     primary: { label: "Agenda una asesoría", href: "/agenda" },
     secondary: { label: "Conoce nuestros servicios", href: "/servicios" },

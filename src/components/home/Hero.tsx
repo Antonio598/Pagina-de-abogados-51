@@ -1,6 +1,7 @@
 import { home } from "@content/home";
 import { site } from "@content/site";
 import { ButtonLink } from "@/components/ui/Button";
+import { Logo } from "@/components/layout/Logo";
 import { WordReveal } from "@/components/landing/Efectos";
 import { TrackedLink } from "@/components/ui/TrackedLink";
 import { pad2 } from "@/lib/utils";
@@ -21,7 +22,11 @@ export const Hero = () => (
     <div className="container-editorial relative grid gap-12 pb-16 pt-12 md:pt-20 lg:grid-cols-12 lg:items-center lg:gap-10 lg:pb-28 lg:pt-24">
       <div className="lg:col-span-7">
         <p className="eyebrow anim-rise flex items-center gap-3" style={d(0)}>
-          <span className="h-px w-8 bg-dorado" aria-hidden />
+          {/* El logotipo sustituye al guion decorativo que había aquí: guion,
+              logotipo y texto juntos saturan una línea pequeña y en mayúsculas.
+              Sin enlace, porque ya estamos en el inicio. */}
+          <Logo size="sm" asLink={false} className="shrink-0" />
+          <span className="h-px w-6 bg-dorado" aria-hidden />
           {site.coverage}
         </p>
         <WordReveal texto={home.hero.title} delay={80} brillo="azul" className="font-display type-h1 mt-6 block max-w-[16ch] text-balance" />

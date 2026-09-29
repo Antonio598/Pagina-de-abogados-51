@@ -36,7 +36,7 @@ export const landing = {
     "Citatorio de conciliación",
     "Demanda laboral",
     "Terminación y convenios",
-    "Solo lado patronal",
+    "Defensa patronal",
     "En línea · todo México",
   ],
 

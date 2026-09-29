@@ -118,7 +118,6 @@ export const BookingForm = ({
       producto: productoInicial,
       situacion: (situaciones.some((s) => s.id === situacionInicial) ? situacionInicial : undefined) as ReservaInput["situacion"],
       origen,
-      empresa_web: "",
     },
     mode: "onBlur",
   });
@@ -214,12 +213,6 @@ export const BookingForm = ({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className={cn("relative space-y-8", className)}>
-      {/* Honeypot */}
-      <div className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden" aria-hidden>
-        <label htmlFor="reserva_empresa_web">No completar este campo</label>
-        <input id="reserva_empresa_web" type="text" tabIndex={-1} autoComplete="off" {...register("empresa_web")} />
-      </div>
-
       {/* El id de servicio viaja en el formulario; el precio lo pone el servidor. */}
       <input type="hidden" {...register("producto")} />
 

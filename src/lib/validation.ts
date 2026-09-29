@@ -31,8 +31,12 @@ export const contactSchema = z.object({
   canal: z.enum(canalValues, { message: e.canal }),
   privacidad: z.literal(true, { message: e.privacidad }),
   recurso: z.string().trim().max(80).optional().or(z.literal("")),
-  // Honeypot: se evalúa en el servidor antes de validar (debe llegar vacío).
-  empresa_web: z.string().optional(),
+  // Trampa antispam: se evalúa en el servidor antes de validar (debe llegar
+  // vacía). El nombre NO puede parecerse a un dato real: uno llamado
+  // "empresa_web" lo clasifica el autocompletado de Chrome como "organización" y
+  // lo rellena con la empresa guardada del visitante, que entonces ve una
+  // pantalla de éxito mientras su mensaje se tira a la basura.
+  ref_interna: z.string().optional(),
 });
 
 export type ContactInput = z.infer<typeof contactSchema>;
@@ -57,7 +61,6 @@ export const reservaSchema = z.object({
   terminos: z.literal(true, { message: "Es necesario aceptar los términos y el aviso de privacidad." }),
   origen: z.enum(["landing", "sitio"]),
   utm: z.record(z.string(), z.string().max(120)).optional(),
-  empresa_web: z.string().optional(),
 });
 
 export type ReservaInput = z.infer<typeof reservaSchema>;

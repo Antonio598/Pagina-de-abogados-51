@@ -34,7 +34,7 @@ const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "
 
 const rows = (data: Record<string, unknown>) =>
   Object.entries(data)
-    .filter(([k, v]) => v !== undefined && v !== "" && k !== "empresa_web")
+    .filter(([k, v]) => v !== undefined && v !== "" && k !== "ref_interna")
     .map(([k, v]) => `<tr><td style="padding:6px 12px 6px 0;color:#7A653A;text-transform:uppercase;font-size:12px;letter-spacing:.08em;vertical-align:top">${esc(k)}</td><td style="padding:6px 0;color:#292A2D">${esc(v === true ? "Sí" : v)}</td></tr>`)
     .join("");
 
@@ -51,8 +51,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Solicitud inválida." }, { status: 400 });
   }
 
-  // Honeypot lleno: respondemos como éxito silencioso para no dar pistas al bot.
-  if ((body as { empresa_web?: string })?.empresa_web) {
+  // Trampa llena: respondemos como éxito silencioso para no dar pistas al bot.
+  //
+  // Aquí la trampa sí se justifica (enviar es gratis), pero se registra: si un
+  // día un navegador vuelve a rellenar el campo solo, el mensaje de una persona
+  // real se descarta sin avisar y esta línea es la única forma de enterarse.
+  if ((body as { ref_interna?: string })?.ref_interna) {
+    console.warn("[contacto] Descartado por la trampa antispam. Si se repite con datos verosímiles, el campo lo está rellenando el navegador.");
     return NextResponse.json({ ok: true, id: "ignored" });
   }
 

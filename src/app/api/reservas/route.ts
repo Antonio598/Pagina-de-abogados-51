@@ -64,10 +64,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Solicitud inválida." }, { status: 400 });
   }
 
-  // Honeypot: éxito silencioso para no dar pistas al bot.
-  if ((body as { empresa_web?: string })?.empresa_web) {
-    return NextResponse.json({ ok: true, url: siteUrl() });
-  }
+  // AQUÍ HABÍA UNA TRAMPA ANTISPAM Y SE QUITÓ A PROPÓSITO.
+  //
+  // Devolvía { ok: true, url: <portada del sitio> } cuando llegaba relleno un
+  // campo oculto llamado "empresa_web". El autocompletado de Chrome clasifica
+  // ese nombre como "organización" y lo rellena solo, así que a quien tuviera
+  // una empresa guardada en el navegador el botón "Pagar y confirmar mi cita"
+  // lo mandaba a la portada en vez de a Stripe. Sin error, sin registro, sin
+  // manera de que el comprador ni nosotros lo supiéramos. Venta perdida.
+  //
+  // No se reemplaza por otra trampa porque en este formulario no hace falta:
+  // reservar exige pagar, así que el spam le cuesta dinero al spammer, y el
+  // límite de 8 peticiones por IP cada 10 minutos ya acota lo único abusable,
+  // que es retener horarios 20 minutos sin pagarlos.
 
   const parsed = reservaSchema.safeParse(body);
   if (!parsed.success) {

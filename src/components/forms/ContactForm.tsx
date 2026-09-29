@@ -34,7 +34,7 @@ export const ContactForm = ({ defaultAsunto, recurso }: Props) => {
     defaultValues: {
       asunto: (asuntoOptions.some((o) => o.value === defaultAsunto) ? defaultAsunto : undefined) as ContactInput["asunto"],
       recurso: recurso ?? "",
-      empresa_web: "",
+      ref_interna: "",
       municipio: "",
     },
     mode: "onBlur",
@@ -88,10 +88,13 @@ export const ContactForm = ({ defaultAsunto, recurso }: Props) => {
         <p className="rounded-brand border border-gris bg-marfil px-4 py-3 text-sm text-carbon/80">{cf.resourceNote(resource.title)}</p>
       )}
 
-      {/* Honeypot: oculto para personas, visible para bots. */}
+      {/* Trampa antispam: oculta para personas, visible para bots.
+          El nombre del campo no debe parecerse a ningún dato real. Se llamaba
+          "empresa_web" y el autocompletado de Chrome lo rellenaba solo con la
+          empresa del visitante, cuyo mensaje se descartaba en silencio. */}
       <div className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden" aria-hidden>
-        <label htmlFor="empresa_web">No completar este campo</label>
-        <input id="empresa_web" type="text" tabIndex={-1} autoComplete="off" {...register("empresa_web")} />
+        <label htmlFor="ref_interna">No completar este campo</label>
+        <input id="ref_interna" type="text" tabIndex={-1} autoComplete="off" {...register("ref_interna")} />
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2">

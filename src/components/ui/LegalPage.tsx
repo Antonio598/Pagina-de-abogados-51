@@ -7,7 +7,13 @@ import { DrawLine, Reveal } from "@/components/motion/Reveal";
 import { formatDate, pad2 } from "@/lib/utils";
 
 /** Plantilla común para los tres avisos legales. */
-export const LegalPage = ({ doc }: { doc: LegalDoc }) => (
+export const LegalPage = ({ doc }: { doc: LegalDoc }) => {
+  // El índice sale de los encabezados del propio texto. Mantenerlo en una lista
+  // aparte era una trampa: basta con que alguien añada una sección al cuerpo y
+  // olvide la lista para que los enlaces #seccion-N señalen a otro apartado.
+  const indice = doc.body?.length ? doc.body.map((b) => b.heading) : (doc.sections ?? []);
+
+  return (
   <>
     <Breadcrumbs items={[{ name: "Inicio", href: "/" }, { name: doc.title, href: `/${doc.slug}` }]} />
     <PageHero eyebrow={site.name} title={doc.title} compact />
@@ -18,8 +24,10 @@ export const LegalPage = ({ doc }: { doc: LegalDoc }) => (
             <p className="eyebrow">Contenido</p>
             <DrawLine className="my-4" />
             <ol className="space-y-1 text-[0.95rem]">
-              {doc.sections.map((s, i) => (
-                <li key={s} className="flex gap-3">
+              {indice.map((s, i) => (
+                // Clave por índice: dos encabezados podrían repetirse y la
+                // reconciliación de React se corrompería en silencio.
+                <li key={`${i}-${s}`} className="flex gap-3">
                   <span className="font-display tabular-nums text-dorado-2" aria-hidden>
                     {pad2(i + 1)}
                   </span>
@@ -36,22 +44,32 @@ export const LegalPage = ({ doc }: { doc: LegalDoc }) => (
         <article className="lg:col-span-8">
           {doc.body && doc.body.length > 0 ? (
             doc.body.map((b, i) => (
-              <Reveal key={b.heading} className="mb-10">
+              <Reveal key={`${i}-${b.heading}`} className="mb-10">
                 <h2 id={`seccion-${i + 1}`} className="font-display type-h2 scroll-mt-28 text-azul">
                   {b.heading}
                 </h2>
-                {b.paragraphs.map((p) => (
-                  <p key={p} className="measure mt-4 text-carbon/90">
+                {b.paragraphs.map((p, j) => (
+                  <p key={`${j}-${p.slice(0, 24)}`} className="measure mt-4 text-carbon/90">
                     {p}
                   </p>
                 ))}
+                {b.list && b.list.length > 0 && (
+                  <ul className="measure mt-5 space-y-3">
+                    {b.list.map((x, j) => (
+                      <li key={`${j}-${x.slice(0, 24)}`} className="flex gap-3 text-carbon/90">
+                        <span className="mt-2.5 size-1.5 shrink-0 rounded-full bg-dorado" aria-hidden />
+                        <span>{x}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </Reveal>
             ))
           ) : (
             <>
-              {/* Estructura de secciones lista para recibir el texto de VERITUM (content/legal.ts → body). */}
+              {/* Estructura de secciones lista para recibir el texto (content/legal.ts → body). */}
               <ol className="space-y-6">
-                {doc.sections.map((s, i) => (
+                {indice.map((s, i) => (
                   // Clave por índice: dos secciones podrían llamarse igual y la
                   // reconciliación de React se corrompería en silencio.
                   <li key={`${i}-${s}`}>
@@ -68,4 +86,5 @@ export const LegalPage = ({ doc }: { doc: LegalDoc }) => (
       </div>
     </Section>
   </>
-);
+  );
+};

@@ -56,6 +56,15 @@ export const env = {
 
   // Medición
   gtmId: clean(process.env.NEXT_PUBLIC_GTM_ID),
+  /**
+   * Google Ads. El valor va literal por la misma razón que los precios: una
+   * NEXT_PUBLIC_* que no esté declarada como ARG en el Dockerfile queda VACÍA en
+   * la imagen, y entonces la etiqueta no se carga nunca y nadie se entera hasta
+   * que la campaña lleva semanas sin medir una sola conversión. Ya pasó con los
+   * precios. El id no es un secreto: aparece en el código fuente de la página.
+   * La variable de entorno sigue sirviendo para sustituirlo.
+   */
+  googleAdsId: clean(process.env.NEXT_PUBLIC_GOOGLE_ADS_ID) ?? "AW-18539493025",
 } as const;
 
 export const whatsappHref = env.whatsapp

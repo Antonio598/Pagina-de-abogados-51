@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { legalNav, site } from "@content/site";
 import { Logo } from "@/components/layout/Logo";
+import { ConsentTags } from "@/components/layout/ConsentTags";
 import { LandingTracker } from "@/components/landing/LandingTracker";
 import { PromoBar } from "@/components/landing/PromoBar";
 import { getPromo } from "@/lib/promo-server";
@@ -18,6 +19,9 @@ export default async function ConsultaLayout({ children }: LayoutProps<"/consult
   return (
     <div className="flex min-h-dvh flex-col bg-marfil">
       <LandingTracker />
+      {/* El tráfico de anuncios entra por aquí: la etiqueta de Google Ads tiene
+          que cargarse en esta plantilla, no solo en la del sitio. */}
+      <ConsentTags />
 
       <header className="sticky top-0 z-40 border-b border-gris bg-marfil">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-4 py-2.5 sm:gap-3">

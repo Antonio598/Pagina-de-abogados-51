@@ -6,6 +6,7 @@ import { site } from "@content/site";
 import { PageHero } from "@/components/ui/PageHero";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { Section, SectionHeading } from "@/components/ui/Section";
+import { FotoDespacho } from "@/components/ui/FotoDespacho";
 import { DrawLine, Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import { ProcessSteps } from "@/components/services/ProcessSteps";
 import { ClosingCta } from "@/components/home/ClosingCta";
@@ -49,6 +50,10 @@ export default function ProcessPage() {
               <DrawLine className="my-5" />
               <p className="text-carbon/90">{proc.note.text}</p>
             </div>
+
+            {/* Fotografía real: la columna derecha termina antes que la lista
+                de la izquierda y dejaba un hueco en escritorio. */}
+            <FotoDespacho foto="consulta" className="mt-6" anchoEscritorio="460px" />
           </Reveal>
         </div>
       </Section>

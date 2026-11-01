@@ -9,6 +9,7 @@ import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { Section, SectionHeading, Eyebrow } from "@/components/ui/Section";
 import { DrawLine, Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import { ClosingCta } from "@/components/home/ClosingCta";
+import { FotoDespacho } from "@/components/ui/FotoDespacho";
 import { pad2 } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -68,6 +69,14 @@ export default function AboutPage() {
             </Stagger>
           </div>
         </div>
+      </Section>
+
+      {/* Fotografía real del despacho. No es banco de imágenes ni un render:
+          es la misma regla que impide inventar perfiles en content/about.ts. */}
+      <Section tone="marfil" tight>
+        <Reveal className="mx-auto max-w-3xl">
+          <FotoDespacho />
+        </Reveal>
       </Section>
 
       {/* Misión y visión */}

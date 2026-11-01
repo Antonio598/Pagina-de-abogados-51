@@ -20,6 +20,7 @@ import { RevelarSecciones } from "@/components/landing/RevelarSecciones";
 import { MagneticLink } from "@/components/landing/Magnetico";
 import { BarraFija } from "@/components/landing/BarraFija";
 import { TrackedLink } from "@/components/ui/TrackedLink";
+import { FotoDespacho } from "@/components/ui/FotoDespacho";
 
 export const metadata: Metadata = {
   title: "Defensa laboral para patrones y empresas · VERITUM",
@@ -263,6 +264,13 @@ export default async function LandingPage() {
             </li>
           ))}
         </ol>
+
+        {/* La foto va aquí y no en la cabecera: después de leer los cuatro
+            pasos, ver el despacho real confirma lo que acaba de prometerse.
+            Arriba competiría con el titular. */}
+        <div className="mt-8" data-reveal="">
+          <FotoDespacho />
+        </div>
 
         <MagneticLink
           href="#servicios"
